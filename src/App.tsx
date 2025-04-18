@@ -11,6 +11,7 @@ import Inventory from "./components/inventory";
 import NotificationsPage from "./components/NotificationsPage";
 import AddItemsScreen from "./components/AddItemsScreen";
 import PaymentMethodScreen from "./components/PaymentMethodScreen";
+import OrderConfirmationScreen from "./components/OrderConfirmationScreen";
 import routes from "tempo-routes";
 
 function App() {
@@ -32,6 +33,10 @@ function App() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/add-items" element={<AddItemsScreen />} />
           <Route path="/payment-method" element={<PaymentMethodScreen />} />
+          <Route
+            path="/order-confirmation"
+            element={<OrderConfirmationScreen />}
+          />
         </Routes>
         {tempoRoutes}
       </div>

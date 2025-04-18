@@ -53,13 +53,17 @@ const PaymentMethodScreen = () => {
   };
 
   const handleProceedToConfirmation = () => {
+    // Find the selected payment method object
+    const selectedMethod = paymentMethods.find(
+      (method) => method.id === selectedPaymentMethod,
+    );
+
+    // Navigate to the confirmation screen with all order data
     navigate("/order-confirmation", {
       state: {
         orderItems,
         orderTotal,
-        paymentMethod: paymentMethods.find(
-          (method) => method.id === selectedPaymentMethod,
-        ),
+        paymentMethod: selectedMethod,
       },
     });
   };

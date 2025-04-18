@@ -387,9 +387,10 @@ const Dashboard = () => {
         <Button
           onClick={handleNewOrderClick}
           size="lg"
-          className="h-14 w-14 rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg flex items-center justify-center"
+          className="h-14 w-14 rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg flex items-center justify-center p-0"
+          aria-label="Create new order"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-6 w-6 text-white" />
         </Button>
       </div>
     </Layout>
