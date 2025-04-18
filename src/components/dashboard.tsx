@@ -20,6 +20,7 @@ import {
   Calendar,
   MessageSquare,
   Plus,
+  User,
 } from "lucide-react";
 
 const Dashboard = () => {
