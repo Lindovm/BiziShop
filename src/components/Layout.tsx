@@ -261,7 +261,7 @@ const Layout = ({ children }: LayoutProps) => {
         </div>
       </div>
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-gray-50">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>{children}</main>
     </div>
   );
 };

@@ -70,7 +70,7 @@ const PaymentMethodScreen = () => {
 
   return (
     <Layout>
-      <div className="w-full max-w-7xl mx-auto p-4 bg-gray-50">
+      <div className="w-full max-w-7xl mx-auto p-4 pb-32 bg-gray-50 overflow-y-auto">
         <div className="mb-6">
           <Button variant="ghost" className="mb-2" onClick={handleBackClick}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Items
@@ -91,13 +91,14 @@ const PaymentMethodScreen = () => {
               <Card
                 key={method.id}
                 className={`bg-white cursor-pointer ${selectedPaymentMethod === method.id ? "border-2 border-orange-500" : ""}`}
+                onClick={() => setSelectedPaymentMethod(method.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <RadioGroupItem value={method.id} id={method.id} />
                     <Label
                       htmlFor={method.id}
-                      className="flex items-center space-x-3 cursor-pointer"
+                      className="flex items-center space-x-3 cursor-pointer w-full"
                     >
                       <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
                         {method.icon}
@@ -123,7 +124,7 @@ const PaymentMethodScreen = () => {
           </Card>
         )}
 
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-10">
           <div className="w-full max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-2">
               <div className="text-gray-500">Order Total:</div>
