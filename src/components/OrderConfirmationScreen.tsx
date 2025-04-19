@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ArrowLeft, Check, Printer, Share } from "lucide-react";
+import { getUserRole } from "../lib/supabase";
 
 interface OrderItem {
   id: string;
@@ -35,8 +36,13 @@ const OrderConfirmationScreen = () => {
   // Generate a random order number
   const orderNumber = `#${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const handleBackToDashboard = () => {
-    navigate("/dashboard");
+  const handleBackToDashboard = async () => {
+    const role = await getUserRole();
+    if (role === "cashier") {
+      navigate("/orders");
+    } else {
+      navigate("/dashboard");
+    }
   };
 
   return (
@@ -48,7 +54,7 @@ const OrderConfirmationScreen = () => {
             className="mb-2"
             onClick={handleBackToDashboard}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Order Confirmation</h1>
@@ -125,7 +131,7 @@ const OrderConfirmationScreen = () => {
           className="w-full bg-orange-500 hover:bg-orange-600 mb-4"
           onClick={handleBackToDashboard}
         >
-          Back to Dashboard
+          Return to Home
         </Button>
       </div>
     </Layout>

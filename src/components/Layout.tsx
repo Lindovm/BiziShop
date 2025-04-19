@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home as HomeIcon,
@@ -13,7 +13,7 @@ import {
   Package,
   LogOut,
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { supabase, getUserRole, UserRole, hasAccess } from "../lib/supabase";
 import { Badge } from "./ui/badge";
 import NotificationSidebar from "./NotificationSidebar";
 
@@ -24,8 +24,18 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>("cashier");
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const role = await getUserRole();
+      setUserRole(role);
+    };
+
+    fetchUserRole();
+  }, []);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -44,10 +54,10 @@ const Layout = ({ children }: LayoutProps) => {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      // Redirect to login page (assuming it's at root for now)
-      navigate("/");
-      // You might want to add a reload or clear local state here
-      window.location.href = "/";
+      // Clear role from localStorage
+      localStorage.removeItem("userRole");
+      // Redirect to auth page
+      navigate("/auth");
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -70,7 +80,8 @@ const Layout = ({ children }: LayoutProps) => {
                 b
               </div>
               <span className="text-lg hidden md:flex items-center">
-                <span className="font-light">.izi</span><span className="font-bold">Shop</span>
+                <span className="font-light">.izi</span>
+                <span className="font-bold">Shop</span>
               </span>
             </Link>
           </div>
@@ -81,7 +92,7 @@ const Layout = ({ children }: LayoutProps) => {
                 3
               </span>
             </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="flex items-center space-x-1 text-white hover:text-orange-200"
             >
@@ -106,7 +117,8 @@ const Layout = ({ children }: LayoutProps) => {
                   b
                 </div>
                 <span className="text-lg flex items-center">
-                  <span className="font-light">.izi</span><span className="font-bold">Shop</span>
+                  <span className="font-light">.izi</span>
+                  <span className="font-bold">Shop</span>
                 </span>
               </div>
               <button onClick={() => setIsMenuOpen(false)}>
@@ -114,14 +126,16 @@ const Layout = ({ children }: LayoutProps) => {
               </button>
             </div>
             <div className="space-y-4">
-              <Link
-                to="/"
-                className={`flex items-center space-x-2 p-2 ${isActive("/") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <HomeIcon className="h-5 w-5" />
-                <span>Dashboard</span>
-              </Link>
+              {(userRole === "manager" || userRole === "owner") && (
+                <Link
+                  to="/dashboard"
+                  className={`flex items-center space-x-2 p-2 ${isActive("/dashboard") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <HomeIcon className="h-5 w-5" />
+                  <span>Dashboard</span>
+                </Link>
+              )}
               <Link
                 to="/orders"
                 className={`flex items-center space-x-2 p-2 ${isActive("/orders") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
@@ -138,22 +152,26 @@ const Layout = ({ children }: LayoutProps) => {
                 <Utensils className="h-5 w-5" />
                 <span>Menu</span>
               </Link>
-              <Link
-                to="/analytics"
-                className={`flex items-center space-x-2 p-2 ${isActive("/analytics") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <BarChart2 className="h-5 w-5" />
-                <span>Analytics</span>
-              </Link>
-              <Link
-                to="/inventory"
-                className={`flex items-center space-x-2 p-2 ${isActive("/inventory") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Package className="h-5 w-5" />
-                <span>Inventory</span>
-              </Link>
+              {userRole === "owner" && (
+                <Link
+                  to="/analytics"
+                  className={`flex items-center space-x-2 p-2 ${isActive("/analytics") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <BarChart2 className="h-5 w-5" />
+                  <span>Analytics</span>
+                </Link>
+              )}
+              {(userRole === "manager" || userRole === "owner") && (
+                <Link
+                  to="/inventory"
+                  className={`flex items-center space-x-2 p-2 ${isActive("/inventory") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Package className="h-5 w-5" />
+                  <span>Inventory</span>
+                </Link>
+              )}
               <Link
                 to="/messages"
                 className={`flex items-center space-x-2 p-2 ${isActive("/messages") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
@@ -184,13 +202,15 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Desktop Navigation */}
       <div className="hidden md:flex bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex space-x-6">
-          <Link
-            to="/"
-            className={`flex items-center justify-center space-x-1 ${isActive("/") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
-          >
-            <HomeIcon className="h-5 w-5" />
-            <span>Dashboard</span>
-          </Link>
+          {(userRole === "manager" || userRole === "owner") && (
+            <Link
+              to="/dashboard"
+              className={`flex items-center justify-center space-x-1 ${isActive("/dashboard") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
+            >
+              <HomeIcon className="h-5 w-5" />
+              <span>Dashboard</span>
+            </Link>
+          )}
           <Link
             to="/orders"
             className={`flex items-center justify-center space-x-1 ${isActive("/orders") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
@@ -205,20 +225,24 @@ const Layout = ({ children }: LayoutProps) => {
             <Utensils className="h-5 w-5" />
             <span>Menu</span>
           </Link>
-          <Link
-            to="/analytics"
-            className={`flex items-center justify-center space-x-1 ${isActive("/analytics") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
-          >
-            <BarChart2 className="h-5 w-5" />
-            <span>Analytics</span>
-          </Link>
-          <Link
-            to="/inventory"
-            className={`flex items-center justify-center space-x-1 ${isActive("/inventory") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
-          >
-            <Package className="h-5 w-5" />
-            <span>Inventory</span>
-          </Link>
+          {userRole === "owner" && (
+            <Link
+              to="/analytics"
+              className={`flex items-center justify-center space-x-1 ${isActive("/analytics") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
+            >
+              <BarChart2 className="h-5 w-5" />
+              <span>Analytics</span>
+            </Link>
+          )}
+          {(userRole === "manager" || userRole === "owner") && (
+            <Link
+              to="/inventory"
+              className={`flex items-center justify-center space-x-1 ${isActive("/inventory") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
+            >
+              <Package className="h-5 w-5" />
+              <span>Inventory</span>
+            </Link>
+          )}
           <Link
             to="/messages"
             className={`flex items-center justify-center space-x-1 ${isActive("/messages") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}

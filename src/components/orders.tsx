@@ -3,13 +3,16 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Clock, Filter, Search } from "lucide-react";
+import { Clock, Filter, Plus, Search } from "lucide-react";
 import Layout from "./Layout";
+import { useNavigate } from "react-router-dom";
 
 const Orders = () => {
+  const navigate = useNavigate();
+
   return (
     <Layout>
-      <div className="w-full max-w-7xl mx-auto p-4">
+      <div className="w-full max-w-7xl mx-auto p-4 relative">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Orders</h1>
           <div className="flex items-center space-x-2">
@@ -267,6 +270,17 @@ const Orders = () => {
             </Card>
           </TabsContent>
         </Tabs>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6">
+        <Button
+          onClick={() => navigate("/add-items")}
+          size="icon"
+          className="h-14 w-14 rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
       </div>
     </Layout>
   );
