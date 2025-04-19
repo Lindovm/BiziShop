@@ -92,7 +92,7 @@ const Messages = () => {
     },
     {
       id: "4",
-      name: "Bizibyte Support",
+      name: "BiziShop Support",
       lastMessage: "How can we help you today?",
       time: "2 days ago",
       unread: 0,
@@ -102,7 +102,7 @@ const Messages = () => {
         {
           id: "1",
           sender: "support",
-          text: "Hello! This is Bizibyte Support. How can we help you today?",
+          text: "Hello! This is BiziShop Support. How can we help you today?",
           time: "2 days ago",
         },
       ],

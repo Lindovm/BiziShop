@@ -11,7 +11,9 @@ import {
   Menu,
   X,
   Package,
+  LogOut,
 } from "lucide-react";
+import { supabase } from "../lib/supabase";
 import { Badge } from "./ui/badge";
 import NotificationSidebar from "./NotificationSidebar";
 
@@ -39,6 +41,18 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      // Redirect to login page (assuming it's at root for now)
+      navigate("/");
+      // You might want to add a reload or clear local state here
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
   return (
     <div className="w-screen h-screen bg-white flex flex-col">
       {/* Header */}
@@ -53,10 +67,10 @@ const Layout = ({ children }: LayoutProps) => {
             </button>
             <Link to="/" className="flex items-center space-x-2">
               <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-orange-500 font-bold">
-                B
+                b
               </div>
-              <span className="font-bold text-lg hidden md:block">
-                Bizibyte Vendor
+              <span className="text-lg hidden md:flex items-center">
+                <span className="font-light">.izi</span><span className="font-bold">Shop</span>
               </span>
             </Link>
           </div>
@@ -66,6 +80,13 @@ const Layout = ({ children }: LayoutProps) => {
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 3
               </span>
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-1 text-white hover:text-orange-200"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="hidden md:inline">Logout</span>
             </button>
           </div>
         </div>
@@ -82,9 +103,11 @@ const Layout = ({ children }: LayoutProps) => {
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
-                  B
+                  b
                 </div>
-                <span className="font-bold text-lg">Bizibyte Vendor</span>
+                <span className="text-lg flex items-center">
+                  <span className="font-light">.izi</span><span className="font-bold">Shop</span>
+                </span>
               </div>
               <button onClick={() => setIsMenuOpen(false)}>
                 <X className="h-6 w-6" />
@@ -147,6 +170,13 @@ const Layout = ({ children }: LayoutProps) => {
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
               </Link>
+              <button
+                className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg text-red-500 w-full"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
             </div>
           </div>
         </div>

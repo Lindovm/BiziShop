@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { useRoutes, Routes, Route } from "react-router-dom";
+import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import Dashboard from "./components/dashboard";
 import Orders from "./components/orders";
@@ -12,6 +12,7 @@ import NotificationsPage from "./components/NotificationsPage";
 import AddItemsScreen from "./components/AddItemsScreen";
 import PaymentMethodScreen from "./components/PaymentMethodScreen";
 import OrderConfirmationScreen from "./components/OrderConfirmationScreen";
+import Login from "./components/Login";
 import routes from "tempo-routes";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
     <Suspense fallback={<p>Loading...</p>}>
       <div>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/orders" element={<Orders />} />
