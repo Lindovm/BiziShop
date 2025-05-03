@@ -1,18 +1,31 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User as FirebaseUser } from 'firebase/auth';
-import { firebaseAuth, getUserRole, UserRole } from '../lib/firebase';
-import { userDB } from '../lib/firebase-db';
-import { User } from '../types/models';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { User as FirebaseUser } from "firebase/auth";
+import { firebaseAuth, getUserRole, UserRole } from "../lib/firebase";
+import { userDB, shopDB } from "../lib/firebase-db";
+import { User, Restaurant } from "../types/models";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userProfile: User | null;
   userRole: UserRole | null;
+  userRestaurant: Restaurant | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role?: UserRole) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    role?: UserRole,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
+  refreshUserRestaurant: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -33,7 +46,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userRestaurant, setUserRestaurant] = useState<Restaurant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Function to fetch restaurant data based on user profile
+  const fetchUserRestaurant = async (profile: User) => {
+    try {
+      // Check for restaurant_id in different possible formats
+      const restaurantId =
+        profile.restaurant_id || profile.restaurantId || profile.restaurants_id;
+
+      if (restaurantId) {
+        console.log("Fetching restaurant with ID:", restaurantId);
+        const restaurant = await shopDB.getRestaurantByReference(restaurantId);
+        console.log("Fetched restaurant:", restaurant);
+        setUserRestaurant(restaurant as Restaurant);
+      } else {
+        console.log("No restaurant ID found in user profile");
+        setUserRestaurant(null);
+      }
+    } catch (error) {
+      console.error("Error fetching restaurant data:", error);
+      setUserRestaurant(null);
+    }
+  };
+
+  // Function to refresh user restaurant data
+  const refreshUserRestaurant = async () => {
+    if (userProfile) {
+      await fetchUserRestaurant(userProfile);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
@@ -46,28 +89,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (profile) {
             setUserProfile(profile as User);
             setUserRole(profile.role as UserRole);
+
+            // Fetch associated restaurant
+            await fetchUserRestaurant(profile as User);
           } else {
             // If no profile exists, create a basic one
             const role = await getUserRole();
             const newProfile = {
               id: user.uid,
-              name: user.displayName || 'User',
-              email: user.email || '',
+              name: user.displayName || "User",
+              email: user.email || "",
               role: role,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
             };
             await userDB.setUserProfile(user.uid, newProfile);
             setUserProfile(newProfile as User);
             setUserRole(role);
+            setUserRestaurant(null);
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          console.error("Error fetching user profile:", error);
           const role = await getUserRole();
           setUserRole(role);
+          setUserRestaurant(null);
         }
       } else {
         setUserProfile(null);
         setUserRole(null);
+        setUserRestaurant(null);
       }
 
       setIsLoading(false);
@@ -79,7 +128,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+      const userCredential = await firebaseAuth.signInWithEmailAndPassword(
+        email,
+        password,
+      );
 
       // Immediately fetch the user profile to ensure we have the role
       if (userCredential.user) {
@@ -90,7 +142,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUserRole(profile.role as UserRole);
           }
         } catch (profileError) {
-          console.error("Error fetching user profile after sign-in:", profileError);
+          console.error(
+            "Error fetching user profile after sign-in:",
+            profileError,
+          );
         }
       }
 
@@ -103,13 +158,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, role: UserRole = 'cashier') => {
+  const signUp = async (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole = "cashier",
+  ) => {
     try {
       setIsLoading(true);
       const { user } = await firebaseAuth.signUp({
         email,
         password,
-        metadata: { role }
+        metadata: { role },
       });
 
       if (user) {
@@ -119,7 +179,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           name,
           email,
           role,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
 
         await userDB.setUserProfile(user.uid, newProfile);
@@ -144,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserProfile = async (data: Partial<User>) => {
     if (!currentUser || !userProfile) {
-      throw new Error('No authenticated user');
+      throw new Error("No authenticated user");
     }
 
     try {
@@ -152,7 +212,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const updatedProfile = {
         ...userProfile,
         ...data,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       await userDB.setUserProfile(currentUser.uid, updatedProfile);
@@ -161,6 +221,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Update role in state if it was changed
       if (data.role && data.role !== userRole) {
         setUserRole(data.role);
+      }
+
+      // If restaurant_id was updated, fetch the new restaurant
+      if (data.restaurant_id || data.restaurantId || data.restaurants_id) {
+        await fetchUserRestaurant(updatedProfile);
       }
     } finally {
       setIsLoading(false);
@@ -171,16 +236,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     currentUser,
     userProfile,
     userRole,
+    userRestaurant,
     isLoading,
     signIn,
     signUp,
     signOut,
-    updateUserProfile
+    updateUserProfile,
+    refreshUserRestaurant,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
