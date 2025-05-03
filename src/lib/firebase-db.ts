@@ -1,28 +1,28 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
   where,
   orderBy,
   limit,
   DocumentData
 } from 'firebase/firestore';
-import { 
-  ref, 
-  set, 
-  get, 
-  update, 
-  remove, 
-  push, 
-  child, 
-  query as dbQuery, 
-  orderByChild, 
-  limitToLast 
+import {
+  ref,
+  set,
+  get,
+  update,
+  remove,
+  push,
+  child,
+  query as dbQuery,
+  orderByChild,
+  limitToLast
 } from 'firebase/database';
 import { firestore, database } from './firebase';
 import { UserRole } from './firebase';
@@ -45,7 +45,7 @@ export const firestoreDB = {
     try {
       const docRef = doc(firestore, collectionName, docId);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -60,13 +60,25 @@ export const firestoreDB = {
   // Get all documents from a collection
   getCollection: async (collectionName: string): Promise<DocumentData[]> => {
     try {
+      console.log(`Attempting to get collection: ${collectionName}`);
       const collectionRef = collection(firestore, collectionName);
       const querySnapshot = await getDocs(collectionRef);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+
+      console.log(`Collection ${collectionName} query returned ${querySnapshot.docs.length} documents`);
+
+      // Log each document ID for debugging
+      querySnapshot.docs.forEach(doc => {
+        console.log(`Document ID in ${collectionName}: ${doc.id}`);
+      });
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`Document data for ${doc.id}:`, data);
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
     } catch (error) {
       console.error(`Error getting collection ${collectionName}:`, error);
       throw error;
@@ -75,16 +87,16 @@ export const firestoreDB = {
 
   // Query documents in a collection
   queryCollection: async (
-    collectionName: string, 
-    fieldPath: string, 
-    operator: any, 
+    collectionName: string,
+    fieldPath: string,
+    operator: any,
     value: any
   ): Promise<DocumentData[]> => {
     try {
       const collectionRef = collection(firestore, collectionName);
       const q = query(collectionRef, where(fieldPath, operator, value));
       const querySnapshot = await getDocs(q);
-      
+
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -136,7 +148,7 @@ export const realtimeDB = {
     try {
       const dbRef = ref(database, path);
       const snapshot = await get(dbRef);
-      
+
       if (snapshot.exists()) {
         return snapshot.val();
       } else {
@@ -219,14 +231,14 @@ export const orderDB = {
         createdAt: new Date().toISOString(),
         status: 'pending'
       });
-      
+
       // Also store in Firestore for better querying
       await firestoreDB.setDocument('orders', orderId, {
         ...orderData,
         createdAt: new Date().toISOString(),
         status: 'pending'
       });
-      
+
       return orderId;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -279,7 +291,7 @@ export const inventoryDB = {
 
   // Update inventory item stock
   updateItemStock: async (itemId: string, newStock: number): Promise<void> => {
-    return firestoreDB.updateDocument('inventory', itemId, { 
+    return firestoreDB.updateDocument('inventory', itemId, {
       currentStock: newStock,
       updatedAt: new Date().toISOString()
     });
@@ -309,5 +321,96 @@ export const menuDB = {
   // Delete menu item
   deleteMenuItem: async (itemId: string): Promise<void> => {
     return firestoreDB.deleteDocument('menu', itemId);
+  }
+};
+
+// Shop-related database operations
+export const shopDB = {
+  // Add or update shop
+  setShop: async (shopId: string, shopData: any): Promise<void> => {
+    return firestoreDB.setDocument('restaurants', shopId, {
+      ...shopData,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  // Get all shops
+  getAllShops: async (): Promise<DocumentData[]> => {
+    const results: DocumentData[] = [];
+
+    // First try to get from 'restaurants' collection (as seen in your Firestore)
+    try {
+      console.log("Fetching shops from 'restaurants' collection");
+
+      // Try to get the specific restaurant we saw in Firebase
+      try {
+        console.log("Trying to get specific restaurant: 2N5qPT2UasAPyjTpDSUY");
+        const specificRestaurant = await firestoreDB.getDocument('restaurants', '2N5qPT2UasAPyjTpDSUY');
+        if (specificRestaurant) {
+          console.log("Found specific restaurant:", specificRestaurant);
+          results.push(specificRestaurant);
+        }
+      } catch (specificError) {
+        console.error("Error fetching specific restaurant:", specificError);
+      }
+
+      // Also try to get all restaurants from the collection
+      const restaurants = await firestoreDB.getCollection('restaurants');
+      if (restaurants && restaurants.length > 0) {
+        console.log(`Found ${restaurants.length} restaurants from collection query`);
+
+        // Only add restaurants that aren't already in our results
+        for (const restaurant of restaurants) {
+          if (!results.some(r => r.id === restaurant.id)) {
+            results.push(restaurant);
+          }
+        }
+      }
+
+      if (results.length > 0) {
+        console.log(`Returning ${results.length} total restaurants`);
+        return results;
+      }
+    } catch (error) {
+      console.error("Error fetching from restaurants collection:", error);
+    }
+
+    // Fallback to 'shops' collection if no restaurants found
+    try {
+      console.log("Fallback: Fetching from 'shops' collection");
+      const shops = await firestoreDB.getCollection('shops');
+      return [...results, ...shops];
+    } catch (error) {
+      console.error("Error fetching from shops collection:", error);
+      return results;
+    }
+  },
+
+  // Get shop by ID
+  getShopById: async (shopId: string): Promise<DocumentData | null> => {
+    // Try restaurants collection first
+    try {
+      const restaurant = await firestoreDB.getDocument('restaurants', shopId);
+      if (restaurant) return restaurant;
+    } catch (error) {
+      console.error(`Error fetching restaurant with ID ${shopId}:`, error);
+    }
+
+    // Fallback to shops collection
+    return firestoreDB.getDocument('shops', shopId);
+  },
+
+  // Get shops by owner ID
+  getShopsByOwnerId: async (ownerId: string): Promise<DocumentData[]> => {
+    // Try restaurants collection first
+    try {
+      const restaurants = await firestoreDB.queryCollection('restaurants', 'ownerId', '==', ownerId);
+      if (restaurants && restaurants.length > 0) return restaurants;
+    } catch (error) {
+      console.error(`Error fetching restaurants for owner ${ownerId}:`, error);
+    }
+
+    // Fallback to shops collection
+    return firestoreDB.queryCollection('shops', 'ownerId', '==', ownerId);
   }
 };

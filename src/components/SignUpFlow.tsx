@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { firestoreDB } from '../lib/firebase-db';
-import { UserRole } from '../lib/firebase';
+import { firestoreDB, shopDB } from '../lib/firebase-db';
+import { UserRole, firebaseAuth } from '../lib/firebase';
 import { User } from '../types/models';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
 // UI Components
 import {
@@ -50,17 +51,17 @@ const Step1: React.FC<Step1Props> = ({
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!email) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
-    
+
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-    
+
     if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    
+
     if (!name) newErrors.name = 'Name is required';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -83,7 +84,7 @@ const Step1: React.FC<Step1Props> = ({
         />
         {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -95,7 +96,7 @@ const Step1: React.FC<Step1Props> = ({
         />
         {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
@@ -106,7 +107,7 @@ const Step1: React.FC<Step1Props> = ({
         />
         {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm Password</Label>
         <Input
@@ -117,7 +118,7 @@ const Step1: React.FC<Step1Props> = ({
         />
         {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
       </div>
-      
+
       <Button className="w-full" onClick={handleNext}>
         Next
       </Button>
@@ -148,7 +149,7 @@ const Step2: React.FC<Step2Props> = ({ role, setRole, onNext, onBack }) => {
               </div>
             </Label>
           </div>
-          
+
           <div className="flex items-center space-x-2 p-2 border rounded-md">
             <RadioGroupItem value="manager" id="manager" />
             <Label htmlFor="manager" className="flex-1 cursor-pointer">
@@ -158,7 +159,7 @@ const Step2: React.FC<Step2Props> = ({ role, setRole, onNext, onBack }) => {
               </div>
             </Label>
           </div>
-          
+
           <div className="flex items-center space-x-2 p-2 border rounded-md">
             <RadioGroupItem value="cashier" id="cashier" />
             <Label htmlFor="cashier" className="flex-1 cursor-pointer">
@@ -170,7 +171,7 @@ const Step2: React.FC<Step2Props> = ({ role, setRole, onNext, onBack }) => {
           </div>
         </RadioGroup>
       </div>
-      
+
       <div className="flex space-x-2">
         <Button variant="outline" className="w-full" onClick={onBack}>
           Back
@@ -212,7 +213,7 @@ const Step3: React.FC<Step3Props> = ({
   name,
 }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Function to handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -224,22 +225,22 @@ const Step3: React.FC<Step3Props> = ({
       reader.readAsDataURL(file);
     }
   };
-  
+
   const validateStep3 = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!phone) newErrors.phone = 'Phone number is required';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleNext = () => {
     if (validateStep3()) {
       onNext();
     }
   };
-  
+
   return (
     <CardContent className="space-y-4">
       <div className="flex flex-col items-center space-y-2">
@@ -258,7 +259,7 @@ const Step3: React.FC<Step3Props> = ({
           onChange={handleFileUpload}
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="phone">Phone Number</Label>
         <Input
@@ -269,7 +270,7 @@ const Step3: React.FC<Step3Props> = ({
         />
         {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="address">Address</Label>
         <Input
@@ -279,7 +280,7 @@ const Step3: React.FC<Step3Props> = ({
           onChange={(e) => setAddress(e.target.value)}
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="bio">Bio</Label>
         <Textarea
@@ -290,7 +291,7 @@ const Step3: React.FC<Step3Props> = ({
           rows={3}
         />
       </div>
-      
+
       <div className="flex space-x-2">
         <Button variant="outline" className="w-full" onClick={onBack}>
           Back
@@ -335,46 +336,162 @@ const Step4: React.FC<Step4Props> = ({
   onBack,
 }) => {
   const [shops, setShops] = useState<Shop[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // In a real app, you would fetch shops from Firestore
-  // For now, we'll use dummy data
-  React.useEffect(() => {
-    // Simulate fetching shops
-    setShops([
-      { id: '1', name: 'Coffee Shop', address: '123 Main St', ownerId: 'owner1' },
-      { id: '2', name: 'Bakery', address: '456 Oak Ave', ownerId: 'owner2' },
-      { id: '3', name: 'Restaurant', address: '789 Pine Rd', ownerId: 'owner3' },
-    ]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Load restaurants from Firestore with fallback to test data
+  useEffect(() => {
+    const loadRestaurants = async () => {
+      try {
+        setLoading(true);
+        setFetchError(null);
+
+        console.log("Loading restaurants from Firestore...");
+
+        try {
+          // Try to get restaurants from Firestore
+          const firestore = getFirestore();
+          const restaurantsRef = collection(firestore, 'restaurants');
+          const querySnapshot = await getDocs(restaurantsRef);
+
+          console.log(`Found ${querySnapshot.docs.length} restaurants in Firestore`);
+
+          if (querySnapshot.docs.length > 0) {
+            // Map the Firestore data to our Shop interface
+            const restaurantsData = querySnapshot.docs.map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                ...data
+              };
+            });
+
+            // Format the restaurant data
+            const formattedRestaurants = restaurantsData.map(restaurant => {
+              // Extract restaurant data with proper type handling
+              const restaurantData = restaurant as any;
+
+              // Get the name
+              let name = 'Unnamed Restaurant';
+              if (restaurantData.name) {
+                name = restaurantData.name;
+              } else if (restaurantData.restaurant_name) {
+                name = restaurantData.restaurant_name;
+              }
+
+              // Get the address
+              let address = 'No address provided';
+              if (typeof restaurantData.address === 'string') {
+                address = restaurantData.address;
+              } else if (restaurantData.address && typeof restaurantData.address === 'object') {
+                const addr = restaurantData.address;
+                const addressParts = [];
+
+                if (addr.street) addressParts.push(addr.street);
+                if (addr.city) addressParts.push(addr.city);
+                if (addr.state) addressParts.push(addr.state);
+
+                if (addressParts.length > 0) {
+                  address = addressParts.join(', ');
+                }
+              }
+
+              // Get the owner ID
+              let ownerId = '';
+              if (restaurantData.ownerId) {
+                ownerId = restaurantData.ownerId;
+              } else if (restaurantData.owner_id) {
+                ownerId = restaurantData.owner_id;
+              }
+
+              return {
+                id: restaurant.id,
+                name,
+                address,
+                ownerId
+              };
+            });
+
+            console.log("Formatted restaurants from Firestore:", formattedRestaurants);
+            setShops(formattedRestaurants);
+            return;
+          }
+        } catch (firestoreError) {
+          console.error('Error fetching from Firestore:', firestoreError);
+          // Continue to fallback data
+        }
+
+        // Fallback to test data if Firestore fails or returns no results
+        console.log("Using fallback test restaurants");
+        const testRestaurants = [
+          {
+            id: 'test-restaurant-1',
+            name: 'Test Restaurant 1',
+            address: {
+              street: '123 Test St',
+              city: 'Durban',
+              state: 'KwaZulu Natal',
+              zipCode: '4126',
+              country: 'South Africa'
+            }
+          },
+          {
+            id: 'test-restaurant-2',
+            name: 'Test Restaurant 2',
+            address: '456 Demo Rd, Durban, South Africa'
+          }
+        ];
+
+        // Format the test data directly
+        const formattedTestRestaurants = testRestaurants.map(restaurant => ({
+          id: restaurant.id,
+          name: restaurant.name,
+          address: typeof restaurant.address === 'string'
+            ? restaurant.address
+            : `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state}`,
+          ownerId: ''
+        }));
+
+        console.log("Formatted test restaurants:", formattedTestRestaurants);
+        setShops(formattedTestRestaurants);
+      } catch (error) {
+        console.error('Error loading restaurants:', error);
+        setFetchError('Failed to load restaurants. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRestaurants();
   }, []);
-  
+
   const validateStep4 = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (role === 'owner') {
       if (!shopName) newErrors.shopName = 'Shop name is required';
       if (!shopAddress) newErrors.shopAddress = 'Shop address is required';
     } else {
       if (!shopId) newErrors.shopId = 'Please select a shop';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleComplete = () => {
     if (validateStep4()) {
       onComplete();
     }
   };
-  
-  const filteredShops = shops.filter(shop => 
+
+  const filteredShops = shops.filter(shop =>
     shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     shop.address.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   return (
     <CardContent className="space-y-4">
       {role === 'owner' ? (
@@ -390,7 +507,7 @@ const Step4: React.FC<Step4Props> = ({
             />
             {errors.shopName && <p className="text-sm text-red-500">{errors.shopName}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="shopAddress">Shop Address</Label>
             <Input
@@ -412,33 +529,175 @@ const Step4: React.FC<Step4Props> = ({
               placeholder="Search by name or address..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading}
             />
           </div>
-          
+
           <div className="space-y-2 max-h-60 overflow-y-auto">
             <Label>Select a Shop</Label>
-            <RadioGroup value={shopId} onValueChange={setShopId}>
-              {filteredShops.length > 0 ? (
-                filteredShops.map(shop => (
-                  <div key={shop.id} className="flex items-center space-x-2 p-2 border rounded-md">
-                    <RadioGroupItem value={shop.id} id={`shop-${shop.id}`} />
-                    <Label htmlFor={`shop-${shop.id}`} className="flex-1 cursor-pointer">
-                      <div className="font-medium">{shop.name}</div>
-                      <div className="text-sm text-gray-500">{shop.address}</div>
-                    </Label>
+
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-orange-400 border-r-transparent"></div>
+                <p className="mt-2 text-sm text-gray-500">Loading restaurants...</p>
+              </div>
+            ) : fetchError ? (
+              <div className="text-center py-4 text-red-500">
+                <p>{fetchError.replace('shops', 'restaurants')}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={async () => {
+                    setLoading(true);
+                    console.log("Retrying restaurant fetch...");
+
+                    setLoading(true);
+                    setFetchError(null);
+
+                    // Try to get restaurants from Firestore first
+                    try {
+                      const firestore = getFirestore();
+                      const restaurantsRef = collection(firestore, 'restaurants');
+                      const querySnapshot = await getDocs(restaurantsRef);
+
+                      console.log(`Retry: Found ${querySnapshot.docs.length} restaurants in Firestore`);
+
+                      if (querySnapshot.docs.length > 0) {
+                        // Map the Firestore data to our Shop interface
+                        const restaurantsData = querySnapshot.docs.map(doc => {
+                          const data = doc.data();
+                          return {
+                            id: doc.id,
+                            ...data
+                          };
+                        });
+
+                        // Format the restaurant data
+                        const formattedRestaurants = restaurantsData.map(restaurant => {
+                          // Extract restaurant data with proper type handling
+                          const restaurantData = restaurant as any;
+
+                          // Get the name
+                          let name = 'Unnamed Restaurant';
+                          if (restaurantData.name) {
+                            name = restaurantData.name;
+                          } else if (restaurantData.restaurant_name) {
+                            name = restaurantData.restaurant_name;
+                          }
+
+                          // Get the address
+                          let address = 'No address provided';
+                          if (typeof restaurantData.address === 'string') {
+                            address = restaurantData.address;
+                          } else if (restaurantData.address && typeof restaurantData.address === 'object') {
+                            const addr = restaurantData.address;
+                            const addressParts = [];
+
+                            if (addr.street) addressParts.push(addr.street);
+                            if (addr.city) addressParts.push(addr.city);
+                            if (addr.state) addressParts.push(addr.state);
+
+                            if (addressParts.length > 0) {
+                              address = addressParts.join(', ');
+                            }
+                          }
+
+                          // Get the owner ID
+                          let ownerId = '';
+                          if (restaurantData.ownerId) {
+                            ownerId = restaurantData.ownerId;
+                          } else if (restaurantData.owner_id) {
+                            ownerId = restaurantData.owner_id;
+                          }
+
+                          return {
+                            id: restaurant.id,
+                            name,
+                            address,
+                            ownerId
+                          };
+                        });
+
+                        console.log("Retry: Formatted restaurants from Firestore:", formattedRestaurants);
+                        setShops(formattedRestaurants);
+                        setFetchError(null);
+                        setLoading(false);
+                        return;
+                      }
+                    } catch (firestoreError) {
+                      console.error('Retry: Error fetching from Firestore:', firestoreError);
+                      // Continue to fallback data
+                    }
+
+                    // Fallback to test data if Firestore fails or returns no results
+                    console.log("Retry: Using fallback test restaurants");
+                    const testRestaurants = [
+                      {
+                        id: 'test-restaurant-1',
+                        name: 'Test Restaurant 1',
+                        address: {
+                          street: '123 Test St',
+                          city: 'Durban',
+                          state: 'KwaZulu Natal',
+                          zipCode: '4126',
+                          country: 'South Africa'
+                        }
+                      },
+                      {
+                        id: 'test-restaurant-2',
+                        name: 'Test Restaurant 2',
+                        address: '456 Demo Rd, Durban, South Africa'
+                      }
+                    ];
+
+                    // Format and display the test restaurants directly
+                    const formattedTestRestaurants = testRestaurants.map(restaurant => ({
+                      id: restaurant.id,
+                      name: restaurant.name,
+                      address: typeof restaurant.address === 'string'
+                        ? restaurant.address
+                        : `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state}`,
+                      ownerId: ''
+                    }));
+
+                    console.log("Retry: Formatted test restaurants:", formattedTestRestaurants);
+                    setShops(formattedTestRestaurants);
+                    setFetchError(null);
+                    setLoading(false);
+                    return;
+                  }}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              <RadioGroup value={shopId} onValueChange={setShopId}>
+                {filteredShops.length > 0 ? (
+                  filteredShops.map(shop => (
+                    <div key={shop.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                      <RadioGroupItem value={shop.id} id={`shop-${shop.id}`} />
+                      <Label htmlFor={`shop-${shop.id}`} className="flex-1 cursor-pointer">
+                        <div className="font-medium">{shop.name}</div>
+                        <div className="text-sm text-gray-500">{shop.address}</div>
+                      </Label>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    {shops.length === 0
+                      ? "No restaurants available. Please contact an administrator."
+                      : "No restaurants found matching your search"}
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  No shops found matching your search
-                </div>
-              )}
-            </RadioGroup>
+                )}
+              </RadioGroup>
+            )}
+
             {errors.shopId && <p className="text-sm text-red-500">{errors.shopId}</p>}
           </div>
         </>
       )}
-      
+
       <div className="flex space-x-2">
         <Button variant="outline" className="w-full" onClick={onBack}>
           Back
@@ -455,52 +714,60 @@ const Step4: React.FC<Step4Props> = ({
 const SignUpFlow: React.FC = () => {
   const navigate = useNavigate();
   const { signUp } = useAuth();
-  
+
   // State for all steps
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   // Step 1: Basic Info
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
-  
+
   // Step 2: Role Selection
   const [role, setRole] = useState<UserRole>('cashier');
-  
+
   // Step 3: Profile Details
   const [profilePicture, setProfilePicture] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [bio, setBio] = useState('');
-  
+
   // Step 4: Shop Selection/Creation
   const [shopId, setShopId] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopAddress, setShopAddress] = useState('');
-  
+
   const handleNext = () => {
     setCurrentStep(prev => prev + 1);
   };
-  
+
   const handleBack = () => {
     setCurrentStep(prev => prev - 1);
   };
-  
+
+  // State for success message
+  const [successMessage, setSuccessMessage] = useState('');
+  const [accountCreated, setAccountCreated] = useState(false);
+
   const handleComplete = async () => {
     setLoading(true);
     setError('');
-    
+    setSuccessMessage('');
+
     try {
       // 1. Create user account
-      const { user } = await signUp(email, password, name, role);
-      
+      await signUp(email, password, name, role);
+
+      // Get the current user after signup
+      const user = firebaseAuth.getCurrentUser();
+
       if (!user) {
         throw new Error('Failed to create user account');
       }
-      
+
       // 2. Create user profile
       const userProfile: User = {
         id: user.uid,
@@ -512,36 +779,62 @@ const SignUpFlow: React.FC = () => {
         address,
         profileImage: profilePicture || undefined,
       };
-      
+
       await firestoreDB.setDocument('users', user.uid, userProfile);
-      
+
       // 3. Handle shop creation or association
       if (role === 'owner') {
-        // Create a new shop
+        // Create a new shop/restaurant
         const shopData = {
           name: shopName,
           address: shopAddress,
           ownerId: user.uid,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
-        
-        const shopRef = await firestoreDB.setDocument('shops', `shop-${Date.now()}`, shopData);
-      } else {
-        // Associate user with existing shop
+
+        // Use the shopDB helper to create a new restaurant
+        const shopId = `restaurant-${Date.now()}`;
+        console.log("Creating new restaurant with ID:", shopId);
+        await shopDB.setShop(shopId, shopData);
+
+        // Also associate the owner with their shop
         await firestoreDB.setDocument('shopMembers', `${shopId}_${user.uid}`, {
           shopId,
           userId: user.uid,
           role,
           joinedAt: new Date().toISOString(),
+          isOwner: true
         });
-      }
-      
-      // 4. Redirect based on role
-      if (role === 'cashier') {
-        navigate('/orders');
+
+        console.log("Restaurant created and owner associated successfully");
       } else {
-        navigate('/dashboard');
+        // Associate user with existing shop
+        console.log("Associating user with existing restaurant:", shopId);
+        await firestoreDB.setDocument('shopMembers', `${shopId}_${user.uid}`, {
+          shopId,
+          userId: user.uid,
+          role,
+          joinedAt: new Date().toISOString(),
+          isOwner: false
+        });
+        console.log("User associated with restaurant successfully");
       }
+
+      // Show success message
+      setSuccessMessage('Account created successfully! Redirecting...');
+      setAccountCreated(true);
+
+      // Wait a moment to show the success message before redirecting
+      setTimeout(() => {
+        // 4. Redirect based on role
+        if (role === 'cashier') {
+          navigate('/orders');
+        } else {
+          navigate('/dashboard');
+        }
+      }, 2000);
+
     } catch (error: any) {
       console.error('Error in sign-up flow:', error);
       setError(error.message || 'An error occurred during sign up');
@@ -549,10 +842,10 @@ const SignUpFlow: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   // Calculate progress percentage
   const progressPercentage = (currentStep / 4) * 100;
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <Card className="w-full max-w-md">
@@ -568,13 +861,19 @@ const SignUpFlow: React.FC = () => {
           </CardDescription>
           <Progress value={progressPercentage} className="h-2" />
         </CardHeader>
-        
+
         {error && (
           <div className="mx-6 mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
+        {successMessage && (
+          <div className="mx-6 mb-4 p-2 bg-green-100 border border-green-400 text-green-700 rounded">
+            {successMessage}
+          </div>
+        )}
+
         {currentStep === 1 && (
           <Step1
             email={email}
@@ -588,7 +887,7 @@ const SignUpFlow: React.FC = () => {
             onNext={handleNext}
           />
         )}
-        
+
         {currentStep === 2 && (
           <Step2
             role={role}
@@ -597,7 +896,7 @@ const SignUpFlow: React.FC = () => {
             onBack={handleBack}
           />
         )}
-        
+
         {currentStep === 3 && (
           <Step3
             profilePicture={profilePicture}
@@ -613,7 +912,7 @@ const SignUpFlow: React.FC = () => {
             name={name}
           />
         )}
-        
+
         {currentStep === 4 && (
           <Step4
             role={role}
@@ -627,7 +926,7 @@ const SignUpFlow: React.FC = () => {
             onBack={handleBack}
           />
         )}
-        
+
         <CardFooter className="flex justify-between text-sm text-gray-500">
           {loading ? 'Processing...' : 'Your information is secure and encrypted'}
         </CardFooter>

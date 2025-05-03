@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
       setCurrentUser(user);
-      
+
       if (user) {
         try {
           // Get user profile from Firestore
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserProfile(null);
         setUserRole(null);
       }
-      
+
       setIsLoading(false);
     });
 
@@ -79,7 +79,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      await firebaseAuth.signInWithEmailAndPassword(email, password);
+      const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+
+      // Immediately fetch the user profile to ensure we have the role
+      if (userCredential.user) {
+        try {
+          const profile = await userDB.getUserProfile(userCredential.user.uid);
+          if (profile) {
+            setUserProfile(profile as User);
+            setUserRole(profile.role as UserRole);
+          }
+        } catch (profileError) {
+          console.error("Error fetching user profile after sign-in:", profileError);
+        }
+      }
+
+      return userCredential;
+    } catch (error) {
+      console.error("Sign-in error:", error);
+      throw error; // Re-throw to be caught by the component
     } finally {
       setIsLoading(false);
     }
@@ -103,8 +121,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role,
           createdAt: new Date().toISOString()
         };
-        
+
         await userDB.setUserProfile(user.uid, newProfile);
+
+        // Set the user role in state immediately
+        setUserRole(role);
+        setUserProfile(newProfile as User);
       }
     } finally {
       setIsLoading(false);
@@ -132,10 +154,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ...data,
         updatedAt: new Date().toISOString()
       };
-      
+
       await userDB.setUserProfile(currentUser.uid, updatedProfile);
       setUserProfile(updatedProfile);
-      
+
       // Update role in state if it was changed
       if (data.role && data.role !== userRole) {
         setUserRole(data.role);

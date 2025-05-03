@@ -104,9 +104,21 @@ export const firebaseAuth = {
     try {
       const userCredential = await firebaseSignInWithEmailAndPassword(auth, email, password);
 
-      // For demo purposes, we'll use localStorage
-      // In a real app, you'd fetch the user's role from Firestore
-      const role = localStorage.getItem("userRole") || "cashier";
+      // Try to get the user's role from Firestore
+      try {
+        const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists() && userDocSnap.data()?.role) {
+          const role = userDocSnap.data()?.role;
+          // Store the role in localStorage for faster access
+          localStorage.setItem("userRole", role);
+        }
+      } catch (firestoreError) {
+        console.error("Error fetching role from Firestore:", firestoreError);
+        // If Firestore fails, use a default role
+        localStorage.setItem("userRole", "cashier");
+      }
 
       return userCredential;
     } catch (error) {

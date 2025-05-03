@@ -27,13 +27,30 @@ const AuthenticationScreen = () => {
     e.preventDefault();
     setError("");
 
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+
     try {
       await signIn(email, password);
 
-      // Navigation will be handled by the protected routes in App.tsx
-      // based on the user's role
+      // Manually navigate to dashboard after successful sign-in
+      // This helps in case the automatic navigation isn't working
+      navigate("/dashboard");
     } catch (error: any) {
-      setError(error.message || "An error occurred during login");
+      console.error("Sign in error:", error);
+
+      // Provide more user-friendly error messages
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError("Invalid email or password. Please try again.");
+      } else if (error.code === 'auth/invalid-email') {
+        setError("Please enter a valid email address.");
+      } else if (error.code === 'auth/too-many-requests') {
+        setError("Too many failed login attempts. Please try again later.");
+      } else {
+        setError(error.message || "An error occurred during login. Please try again.");
+      }
     }
   };
 
