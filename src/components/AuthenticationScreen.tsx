@@ -13,74 +13,35 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import SignUpFlow from "./SignUpFlow";
 
 const AuthenticationScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [selectedRole, setSelectedRole] = useState("cashier");
+  const [showSignUpFlow, setShowSignUpFlow] = useState(false);
   const navigate = useNavigate();
+  const { signIn, isLoading: loading } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      await signIn(email, password);
 
-      if (error) throw error;
-
-      // Redirect based on role
-      const role = data.user?.user_metadata?.role || "cashier";
-      if (role === "cashier") {
-        navigate("/orders");
-      } else {
-        navigate("/dashboard");
-      }
+      // Navigation will be handled by the protected routes in App.tsx
+      // based on the user's role
     } catch (error: any) {
       setError(error.message || "An error occurred during login");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role: "cashier", // Default role for new sign-ups
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      // Show success message or redirect
-      alert(
-        "Account created successfully! Please check your email for verification.",
-      );
-      navigate("/orders"); // Redirect cashiers to orders page
-    } catch (error: any) {
-      setError(error.message || "An error occurred during sign up");
-    } finally {
-      setLoading(false);
-    }
+  const handleStartSignUp = () => {
+    setShowSignUpFlow(true);
   };
 
   const handleDemoLogin = () => {
@@ -90,10 +51,14 @@ const AuthenticationScreen = () => {
   const handleRoleSelection = async () => {
     try {
       // For demo purposes, we'll use a mock login with the selected role
-      // Clear any previous role first
-      localStorage.removeItem("userRole");
+      // Create a demo email based on the role
+      const demoEmail = `demo-${selectedRole}@bizibase.com`;
+      const demoPassword = "Demo123!"; // This should be a secure password in a real app
 
-      // Store the new role in localStorage for persistence
+      // Sign in with the demo credentials
+      await signIn(demoEmail, demoPassword);
+
+      // If the sign-in fails (e.g., demo user doesn't exist), fall back to localStorage
       localStorage.setItem("userRole", selectedRole);
 
       // Redirect based on role
@@ -104,7 +69,7 @@ const AuthenticationScreen = () => {
       }
     } catch (error: any) {
       console.error("Demo login error:", error);
-      // For demo, we'll just redirect anyway
+      // For demo, we'll just use localStorage and redirect
       localStorage.setItem("userRole", selectedRole);
 
       if (selectedRole === "cashier") {
@@ -114,6 +79,10 @@ const AuthenticationScreen = () => {
       }
     }
   };
+
+  if (showSignUpFlow) {
+    return <SignUpFlow />;
+  }
 
   if (showRoleSelection) {
     return (
@@ -256,54 +225,26 @@ const AuthenticationScreen = () => {
               </form>
             </TabsContent>
             <TabsContent value="signup" className="space-y-4">
-              {error && (
-                <div className="p-3 bg-red-100 border border-red-200 text-red-600 rounded-md text-sm">
-                  {error}
+              <div className="space-y-4">
+                <div className="p-4 bg-orange-50 border border-orange-100 rounded-md">
+                  <h3 className="font-medium text-orange-800 mb-2">Complete Sign-Up Process</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Create a new account to get started with BiziShop. You'll be able to:
+                  </p>
+                  <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
+                    <li>Set up your profile with all your details</li>
+                    <li>Choose your role (owner, manager, or cashier)</li>
+                    <li>Create or join a shop</li>
+                    <li>Access features based on your role</li>
+                  </ul>
                 </div>
-              )}
-              <form onSubmit={handleSignUp}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="John Doe"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-orange-500 hover:bg-orange-600"
-                    disabled={loading}
-                  >
-                    {loading ? "Creating account..." : "Create Account"}
-                  </Button>
-                </div>
-              </form>
+                <Button
+                  className="w-full bg-orange-500 hover:bg-orange-600"
+                  onClick={handleStartSignUp}
+                >
+                  Get Started
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

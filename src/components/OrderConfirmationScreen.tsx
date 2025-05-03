@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ArrowLeft, Check, Printer, Share } from "lucide-react";
-import { getUserRole } from "../lib/supabase";
+import { getUserRole } from "../lib/firebase";
 
 interface OrderItem {
   id: string;

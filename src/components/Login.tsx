@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { supabase } from "../lib/supabase";
+import { firebaseAuth } from "../lib/firebase";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,13 +19,8 @@ const Login = () => {
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { user } = await firebaseAuth.signInWithEmailAndPassword(email, password);
 
-      if (error) throw error;
-      
       // Redirect to dashboard on successful login
       navigate("/dashboard");
     } catch (error: any) {

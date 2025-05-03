@@ -19,52 +19,18 @@ import AddItemsScreen from "./components/AddItemsScreen";
 import PaymentMethodScreen from "./components/PaymentMethodScreen";
 import OrderConfirmationScreen from "./components/OrderConfirmationScreen";
 import AuthenticationScreen from "./components/AuthenticationScreen";
-import { supabase, getUserRole, hasAccess, UserRole } from "./lib/supabase";
+import FirebaseTest from "./components/FirebaseTest";
+import { hasAccess, UserRole } from "./lib/firebase";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ShopProvider } from "./contexts/ShopContext";
 import routes from "tempo-routes";
 
-function App() {
+// AppContent component that uses the Auth context
+function AppContent() {
   const tempoRoutes =
     import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { userRole, isLoading } = useAuth();
   const location = useLocation();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-          const role = await getUserRole();
-          setUserRole(role);
-        } else {
-          setUserRole(null);
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
-        setUserRole(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          const role = await getUserRole();
-          setUserRole(role);
-        } else if (event === "SIGNED_OUT") {
-          setUserRole(null);
-        }
-      },
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
 
   // Protected route component
   const ProtectedRoute = ({
@@ -177,10 +143,25 @@ function App() {
               />
             }
           />
+          <Route
+            path="/firebase-test"
+            element={<FirebaseTest />}
+          />
         </Routes>
         {tempoRoutes}
       </div>
     </Suspense>
+  );
+}
+
+// Main App component that provides the contexts
+function App() {
+  return (
+    <AuthProvider>
+      <ShopProvider>
+        <AppContent />
+      </ShopProvider>
+    </AuthProvider>
   );
 }
 
