@@ -12,8 +12,11 @@ import {
   X,
   Package,
   LogOut,
+  Store,
 } from "lucide-react";
-import { supabase, getUserRole, UserRole, hasAccess } from "../lib/supabase";
+import { UserRole, hasAccess } from "../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
+import { useShop } from "../contexts/ShopContext";
 import { Badge } from "./ui/badge";
 import NotificationSidebar from "./NotificationSidebar";
 
@@ -24,18 +27,10 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>("cashier");
+  const { userRole, signOut } = useAuth();
+  const { notifications, unreadNotificationsCount } = useShop();
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      const role = await getUserRole();
-      setUserRole(role);
-    };
-
-    fetchUserRole();
-  }, []);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -53,9 +48,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      // Clear role from localStorage
-      localStorage.removeItem("userRole");
+      await signOut();
       // Redirect to auth page
       navigate("/auth");
     } catch (error) {
@@ -88,9 +81,11 @@ const Layout = ({ children }: LayoutProps) => {
           <div className="flex items-center space-x-4">
             <button className="relative" onClick={handleNotificationClick}>
               <Bell className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                </span>
+              )}
             </button>
             <button
               onClick={handleLogout}
@@ -188,6 +183,14 @@ const Layout = ({ children }: LayoutProps) => {
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
               </Link>
+              <Link
+                to="/restaurants"
+                className={`flex items-center space-x-2 p-2 ${isActive("/restaurants") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Store className="h-5 w-5" />
+                <span>Restaurants</span>
+              </Link>
               <button
                 className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg text-red-500 w-full"
                 onClick={handleLogout}
@@ -249,7 +252,9 @@ const Layout = ({ children }: LayoutProps) => {
           >
             <MessageSquare className="h-5 w-5" />
             <span>Messages</span>
-            <Badge className="ml-1 bg-red-500">2</Badge>
+            {unreadNotificationsCount > 0 && (
+              <Badge className="ml-1 bg-red-500">{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</Badge>
+            )}
           </Link>
           <Link
             to="/settings"
@@ -257,6 +262,13 @@ const Layout = ({ children }: LayoutProps) => {
           >
             <Settings className="h-5 w-5" />
             <span>Settings</span>
+          </Link>
+          <Link
+            to="/restaurants"
+            className={`flex items-center justify-center space-x-1 ${isActive("/restaurants") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
+          >
+            <Store className="h-5 w-5" />
+            <span>Restaurants</span>
           </Link>
         </div>
       </div>
