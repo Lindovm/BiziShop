@@ -19,6 +19,7 @@ import AddItemsScreen from "./components/AddItemsScreen";
 import PaymentMethodScreen from "./components/PaymentMethodScreen";
 import OrderConfirmationScreen from "./components/OrderConfirmationScreen";
 import AuthenticationScreen from "./components/AuthenticationScreen";
+import RestaurantList from "./components/RestaurantList";
 
 import { hasAccess, UserRole } from "./lib/firebase";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -140,6 +141,15 @@ function AppContent() {
               <ProtectedRoute
                 element={<OrderConfirmationScreen />}
                 path="/order-confirmation"
+              />
+            }
+          />
+          <Route
+            path="/restaurants"
+            element={
+              <ProtectedRoute
+                element={<RestaurantList />}
+                path="/restaurants"
               />
             }
           />

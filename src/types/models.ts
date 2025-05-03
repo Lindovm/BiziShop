@@ -10,6 +10,7 @@ export interface User {
   phone?: string;
   address?: string;
   profileImage?: string;
+  restaurant_id?: any; // Reference to a document in the restaurants collection
 }
 
 // Product-related types
@@ -185,6 +186,19 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
   link?: string;
+}
+
+// Restaurant-related types
+export interface Restaurant {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string;
+  ownerId?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 // Settings-related types

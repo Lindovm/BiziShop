@@ -334,6 +334,19 @@ export const shopDB = {
     });
   },
 
+  // Get all restaurants directly from the restaurants collection
+  getAllRestaurants: async (): Promise<DocumentData[]> => {
+    console.log("Getting all restaurants directly from restaurants collection");
+    try {
+      const restaurants = await firestoreDB.getCollection('restaurants');
+      console.log(`Found ${restaurants.length} restaurants in collection`);
+      return restaurants;
+    } catch (error) {
+      console.error("Error fetching restaurants collection:", error);
+      return [];
+    }
+  },
+
   // Get all shops
   getAllShops: async (): Promise<DocumentData[]> => {
     const results: DocumentData[] = [];
@@ -412,5 +425,68 @@ export const shopDB = {
 
     // Fallback to shops collection
     return firestoreDB.queryCollection('shops', 'ownerId', '==', ownerId);
+  },
+
+  // Get restaurant by reference
+  getRestaurantByReference: async (restaurantRef: any): Promise<DocumentData | null> => {
+    try {
+      console.log("getRestaurantByReference called with:", restaurantRef);
+
+      // If restaurantRef is a string (document path), convert it to a reference
+      if (typeof restaurantRef === 'string') {
+        console.log("Restaurant reference is a string");
+
+        // Remove leading slash if present
+        const cleanRef = restaurantRef.startsWith('/') ? restaurantRef.substring(1) : restaurantRef;
+        console.log("Cleaned reference:", cleanRef);
+
+        // If it's a full path like 'restaurants/123'
+        if (cleanRef.includes('/')) {
+          console.log("Restaurant reference is a path with /");
+          const parts = cleanRef.split('/');
+          const collectionName = parts[0];
+          const docId = parts[1];
+          console.log(`Fetching from collection: ${collectionName}, docId: ${docId}`);
+
+          // Try to get the document
+          try {
+            const result = await firestoreDB.getDocument(collectionName, docId);
+            console.log("Result from path lookup:", result);
+            return result;
+          } catch (error) {
+            console.error(`Error fetching from ${collectionName}/${docId}:`, error);
+
+            // If the collection name is not 'restaurants', try with 'restaurants'
+            if (collectionName !== 'restaurants') {
+              console.log(`Trying fallback to restaurants collection with ID: ${docId}`);
+              const fallbackResult = await firestoreDB.getDocument('restaurants', docId);
+              console.log("Result from fallback lookup:", fallbackResult);
+              return fallbackResult;
+            }
+          }
+        }
+
+        // If it's just an ID, assume it's in the restaurants collection
+        console.log(`Fetching from restaurants collection with ID: ${cleanRef}`);
+        const result = await firestoreDB.getDocument('restaurants', cleanRef);
+        console.log("Result from ID lookup:", result);
+        return result;
+      }
+
+      // If it's already a reference, get the document
+      console.log("Restaurant reference is a document reference object");
+      const docSnap = await getDoc(restaurantRef);
+      if (docSnap.exists()) {
+        const result = { id: docSnap.id, ...docSnap.data() };
+        console.log("Result from reference lookup:", result);
+        return result;
+      }
+
+      console.log("No document exists at the reference");
+      return null;
+    } catch (error) {
+      console.error('Error fetching restaurant by reference:', error);
+      return null;
+    }
   }
 };

@@ -12,6 +12,7 @@ import {
   X,
   Package,
   LogOut,
+  Store,
 } from "lucide-react";
 import { UserRole, hasAccess } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
@@ -182,6 +183,14 @@ const Layout = ({ children }: LayoutProps) => {
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
               </Link>
+              <Link
+                to="/restaurants"
+                className={`flex items-center space-x-2 p-2 ${isActive("/restaurants") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Store className="h-5 w-5" />
+                <span>Restaurants</span>
+              </Link>
               <button
                 className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg text-red-500 w-full"
                 onClick={handleLogout}
@@ -253,6 +262,13 @@ const Layout = ({ children }: LayoutProps) => {
           >
             <Settings className="h-5 w-5" />
             <span>Settings</span>
+          </Link>
+          <Link
+            to="/restaurants"
+            className={`flex items-center justify-center space-x-1 ${isActive("/restaurants") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
+          >
+            <Store className="h-5 w-5" />
+            <span>Restaurants</span>
           </Link>
         </div>
       </div>

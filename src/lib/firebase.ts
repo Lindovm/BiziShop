@@ -25,6 +25,7 @@ export const roleAccess = {
     "/payment-method",
     "/order-confirmation",
     "/notifications",
+    "/restaurants",
   ],
   manager: [
     "/dashboard",
@@ -37,6 +38,7 @@ export const roleAccess = {
     "/payment-method",
     "/order-confirmation",
     "/notifications",
+    "/restaurants",
   ],
   owner: [
     "/dashboard",
@@ -50,6 +52,7 @@ export const roleAccess = {
     "/payment-method",
     "/order-confirmation",
     "/notifications",
+    "/restaurants",
   ],
 };
 
