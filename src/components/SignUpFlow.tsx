@@ -5,6 +5,7 @@ import { firestoreDB, shopDB } from '../lib/firebase-db';
 import { UserRole, firebaseAuth } from '../lib/firebase';
 import { User } from '../types/models';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { getFirebaseErrorMessage, logError } from '../lib/error-handler';
 
 // UI Components
 import {
@@ -423,39 +424,10 @@ const Step4: React.FC<Step4Props> = ({
           // Continue to fallback data
         }
 
-        // Fallback to test data if Firestore fails or returns no results
-        console.log("Using fallback test restaurants");
-        const testRestaurants = [
-          {
-            id: 'test-restaurant-1',
-            name: 'Test Restaurant 1',
-            address: {
-              street: '123 Test St',
-              city: 'Durban',
-              state: 'KwaZulu Natal',
-              zipCode: '4126',
-              country: 'South Africa'
-            }
-          },
-          {
-            id: 'test-restaurant-2',
-            name: 'Test Restaurant 2',
-            address: '456 Demo Rd, Durban, South Africa'
-          }
-        ];
-
-        // Format the test data directly
-        const formattedTestRestaurants = testRestaurants.map(restaurant => ({
-          id: restaurant.id,
-          name: restaurant.name,
-          address: typeof restaurant.address === 'string'
-            ? restaurant.address
-            : `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state}`,
-          ownerId: ''
-        }));
-
-        console.log("Formatted test restaurants:", formattedTestRestaurants);
-        setShops(formattedTestRestaurants);
+        // No restaurants found in Firestore
+        console.log("No restaurants found in Firestore");
+        setShops([]);
+        setFetchError("No restaurants found. Please contact an administrator.");
       } catch (error) {
         console.error('Error loading restaurants:', error);
         setFetchError('Failed to load restaurants. Please try again.');
@@ -630,39 +602,10 @@ const Step4: React.FC<Step4Props> = ({
                       // Continue to fallback data
                     }
 
-                    // Fallback to test data if Firestore fails or returns no results
-                    console.log("Retry: Using fallback test restaurants");
-                    const testRestaurants = [
-                      {
-                        id: 'test-restaurant-1',
-                        name: 'Test Restaurant 1',
-                        address: {
-                          street: '123 Test St',
-                          city: 'Durban',
-                          state: 'KwaZulu Natal',
-                          zipCode: '4126',
-                          country: 'South Africa'
-                        }
-                      },
-                      {
-                        id: 'test-restaurant-2',
-                        name: 'Test Restaurant 2',
-                        address: '456 Demo Rd, Durban, South Africa'
-                      }
-                    ];
-
-                    // Format and display the test restaurants directly
-                    const formattedTestRestaurants = testRestaurants.map(restaurant => ({
-                      id: restaurant.id,
-                      name: restaurant.name,
-                      address: typeof restaurant.address === 'string'
-                        ? restaurant.address
-                        : `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state}`,
-                      ownerId: ''
-                    }));
-
-                    console.log("Retry: Formatted test restaurants:", formattedTestRestaurants);
-                    setShops(formattedTestRestaurants);
+                    // No restaurants found in Firestore after retry
+                    console.log("Retry: No restaurants found in Firestore");
+                    setShops([]);
+                    setFetchError("No restaurants found. Please contact an administrator.");
                     setFetchError(null);
                     setLoading(false);
                     return;
@@ -750,7 +693,6 @@ const SignUpFlow: React.FC = () => {
 
   // State for success message
   const [successMessage, setSuccessMessage] = useState('');
-  const [accountCreated, setAccountCreated] = useState(false);
 
   const handleComplete = async () => {
     setLoading(true);
@@ -823,7 +765,6 @@ const SignUpFlow: React.FC = () => {
 
       // Show success message
       setSuccessMessage('Account created successfully! Redirecting...');
-      setAccountCreated(true);
 
       // Wait a moment to show the success message before redirecting
       setTimeout(() => {
@@ -836,8 +777,8 @@ const SignUpFlow: React.FC = () => {
       }, 2000);
 
     } catch (error: any) {
-      console.error('Error in sign-up flow:', error);
-      setError(error.message || 'An error occurred during sign up');
+      logError(error, 'Sign-up flow');
+      setError(getFirebaseErrorMessage(error));
     } finally {
       setLoading(false);
     }

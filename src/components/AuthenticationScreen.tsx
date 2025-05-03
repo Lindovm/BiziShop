@@ -14,6 +14,7 @@ import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { useAuth } from "../contexts/AuthContext";
 import SignUpFlow from "./SignUpFlow";
+import { getFirebaseErrorMessage, logError } from "../lib/error-handler";
 
 const AuthenticationScreen = () => {
   const [email, setEmail] = useState("");
@@ -39,18 +40,8 @@ const AuthenticationScreen = () => {
       // This helps in case the automatic navigation isn't working
       navigate("/dashboard");
     } catch (error: any) {
-      console.error("Sign in error:", error);
-
-      // Provide more user-friendly error messages
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        setError("Invalid email or password. Please try again.");
-      } else if (error.code === 'auth/invalid-email') {
-        setError("Please enter a valid email address.");
-      } else if (error.code === 'auth/too-many-requests') {
-        setError("Too many failed login attempts. Please try again later.");
-      } else {
-        setError(error.message || "An error occurred during login. Please try again.");
-      }
+      logError(error, "Authentication - Sign In");
+      setError(getFirebaseErrorMessage(error));
     }
   };
 

@@ -19,7 +19,7 @@ import AddItemsScreen from "./components/AddItemsScreen";
 import PaymentMethodScreen from "./components/PaymentMethodScreen";
 import OrderConfirmationScreen from "./components/OrderConfirmationScreen";
 import AuthenticationScreen from "./components/AuthenticationScreen";
-import FirebaseTest from "./components/FirebaseTest";
+
 import { hasAccess, UserRole } from "./lib/firebase";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ShopProvider } from "./contexts/ShopContext";
@@ -143,10 +143,7 @@ function AppContent() {
               />
             }
           />
-          <Route
-            path="/firebase-test"
-            element={<FirebaseTest />}
-          />
+
         </Routes>
         {tempoRoutes}
       </div>
