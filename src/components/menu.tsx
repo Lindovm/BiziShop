@@ -1,12 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Edit, Plus, Search, Trash2 } from "lucide-react";
 import Layout from "./Layout";
+import { useShop } from "../contexts/ShopContext";
+import { formatCurrency } from "../lib/utils";
 
 const Menu = () => {
+  const { products, categories, loadingProducts, loadingCategories } = useShop();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Group products by category
+  const productsByCategory = products.reduce((acc, product) => {
+    const category = product.category || 'uncategorized';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(product);
+    return acc;
+  }, {} as Record<string, typeof products>);
+
+  // Filter products based on search term
+  const filteredProducts = searchTerm
+    ? products.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : products;
+
   return (
     <Layout>
       <div className="w-full max-w-7xl mx-auto p-4">
@@ -19,6 +42,8 @@ const Menu = () => {
                 type="text"
                 placeholder="Search menu items..."
                 className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg w-64"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button className="bg-orange-500 hover:bg-orange-600">
@@ -32,119 +57,189 @@ const Menu = () => {
             <TabsTrigger value="all" className="flex-1">
               All Items
             </TabsTrigger>
-            <TabsTrigger value="mains" className="flex-1">
-              Main Dishes
-            </TabsTrigger>
-            <TabsTrigger value="sides" className="flex-1">
-              Sides
-            </TabsTrigger>
-            <TabsTrigger value="drinks" className="flex-1">
-              Drinks
-            </TabsTrigger>
-            <TabsTrigger value="desserts" className="flex-1">
-              Desserts
-            </TabsTrigger>
+            {loadingCategories ? (
+              <TabsTrigger value="loading" className="flex-1" disabled>
+                Loading...
+              </TabsTrigger>
+            ) : (
+              categories.map(category => (
+                <TabsTrigger key={category.id} value={category.id} className="flex-1">
+                  {category.name}
+                </TabsTrigger>
+              ))
+            )}
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Menu Item Card 1 */}
-              <Card className="overflow-hidden">
-                <div className="h-40 w-full overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=500&q=80"
-                    alt="Beef Taco"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-bold text-lg">Beef Tacos</h3>
-                      <Badge className="bg-orange-100 text-orange-800 mt-1">
-                        Main Dish
-                      </Badge>
-                    </div>
-                    <div className="text-lg font-bold">$6.00</div>
+            {loadingProducts ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                   </div>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Corn tortilla, seasoned beef, lettuce, cheese, and pico de
-                    gallo.
-                  </p>
-                  <div className="flex justify-between">
-                    <Badge
-                      variant="outline"
-                      className="text-green-600 border-green-600"
-                    >
-                      Popular
-                    </Badge>
-                    <div className="space-x-2">
-                      <Button variant="outline" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="text-red-500 border-red-200 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <p className="text-center mt-4 text-gray-500">Loading menu items...</p>
                 </CardContent>
               </Card>
-
-              {/* Menu Item Card 2 */}
-              <Card className="overflow-hidden">
-                <div className="h-40 w-full overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=500&q=80"
-                    alt="Chicken Quesadilla"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-bold text-lg">Chicken Quesadilla</h3>
-                      <Badge className="bg-orange-100 text-orange-800 mt-1">
-                        Main Dish
-                      </Badge>
-                    </div>
-                    <div className="text-lg font-bold">$8.99</div>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Flour tortilla filled with grilled chicken, melted cheese,
-                    and sautéed peppers.
+            ) : filteredProducts.length === 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>No Menu Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500">
+                    {searchTerm ? 'No items match your search.' : 'No menu items have been added yet.'}
                   </p>
-                  <div className="flex justify-between">
-                    <Badge
-                      variant="outline"
-                      className="text-green-600 border-green-600"
-                    >
-                      Popular
-                    </Badge>
-                    <div className="space-x-2">
-                      <Button variant="outline" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="text-red-500 border-red-200 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
+                    <Plus className="h-4 w-4 mr-2" /> Add First Item
+                  </Button>
                 </CardContent>
               </Card>
-
-              {/* Additional menu items... */}
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProducts.map(product => {
+                  const category = categories.find(c => c.id === product.category);
+                  return (
+                    <Card key={product.id} className="overflow-hidden">
+                      {product.imageUrl && (
+                        <div className="h-40 w-full overflow-hidden">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-bold text-lg">{product.name}</h3>
+                            {category && (
+                              <Badge className="bg-orange-100 text-orange-800 mt-1">
+                                {category.name}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-lg font-bold">{formatCurrency(product.price)}</div>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">
+                          {product.description}
+                        </p>
+                        <div className="flex justify-between">
+                          {product.popular && (
+                            <Badge
+                              variant="outline"
+                              className="text-green-600 border-green-600"
+                            >
+                              Popular
+                            </Badge>
+                          )}
+                          <div className="space-x-2">
+                            <Button variant="outline" size="icon">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-red-500 border-red-200 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
 
-          {/* Other tab contents... */}
+          {/* Category-specific tabs */}
+          {categories.map(category => (
+            <TabsContent key={category.id} value={category.id} className="space-y-4">
+              {loadingProducts ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                    <p className="text-center mt-4 text-gray-500">Loading menu items...</p>
+                  </CardContent>
+                </Card>
+              ) : products.filter(p => p.category === category.id).length === 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>No {category.name} Items</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-500">No items in this category yet.</p>
+                    <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
+                      <Plus className="h-4 w-4 mr-2" /> Add {category.name} Item
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products
+                    .filter(p => p.category === category.id)
+                    .filter(p =>
+                      searchTerm === '' ||
+                      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      p.description.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map(product => (
+                      <Card key={product.id} className="overflow-hidden">
+                        {product.imageUrl && (
+                          <div className="h-40 w-full overflow-hidden">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-bold text-lg">{product.name}</h3>
+                              <Badge className="bg-orange-100 text-orange-800 mt-1">
+                                {category.name}
+                              </Badge>
+                            </div>
+                            <div className="text-lg font-bold">{formatCurrency(product.price)}</div>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-4">
+                            {product.description}
+                          </p>
+                          <div className="flex justify-between">
+                            {product.popular && (
+                              <Badge
+                                variant="outline"
+                                className="text-green-600 border-green-600"
+                              >
+                                Popular
+                              </Badge>
+                            )}
+                            <div className="space-x-2">
+                              <Button variant="outline" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="text-red-500 border-red-200 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </div>
     </Layout>
