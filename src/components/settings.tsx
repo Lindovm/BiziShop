@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
-import { Clock, CreditCard, MapPin, Save, User, Store, Loader2 } from "lucide-react";
+import {
+  Clock,
+  CreditCard,
+  MapPin,
+  Save,
+  User,
+  Store,
+  Loader2,
+} from "lucide-react";
 import Layout from "./Layout";
 import { Badge } from "./ui/badge";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,7 +37,7 @@ const Settings = () => {
     name: "",
     email: "",
     phone: "",
-    address: ""
+    address: "",
   });
 
   // Initialize form data when userProfile is loaded
@@ -44,7 +58,7 @@ const Settings = () => {
         name: userProfile.name || "",
         email: userProfile.email || "",
         phone: userProfile.phone || "",
-        address: userProfile.address || ""
+        address: userProfile.address || "",
       });
 
       // Fetch restaurant data if any restaurant ID field exists
@@ -71,7 +85,8 @@ const Settings = () => {
         return;
       }
 
-      const restaurantData = await shopDB.getRestaurantByReference(restaurantRef);
+      const restaurantData =
+        await shopDB.getRestaurantByReference(restaurantRef);
       console.log("Restaurant data result:", restaurantData);
 
       if (restaurantData) {
@@ -92,9 +107,9 @@ const Settings = () => {
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [id]: value
+      [id]: value,
     }));
   };
 
@@ -109,7 +124,7 @@ const Settings = () => {
       await updateUserProfile({
         name: formData.name,
         phone: formData.phone,
-        address: formData.address
+        address: formData.address,
       });
 
       alert("Profile updated successfully!");
@@ -179,7 +194,9 @@ const Settings = () => {
                     <div className="h-20 w-20 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-500">
                       {getInitial(userProfile?.name || "")}
                     </div>
-                    <Button type="button" variant="outline">Change Photo</Button>
+                    <Button type="button" variant="outline">
+                      Change Photo
+                    </Button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -201,7 +218,9 @@ const Settings = () => {
                         disabled
                         className="bg-gray-100"
                       />
-                      <p className="text-xs text-gray-500">Email cannot be changed</p>
+                      <p className="text-xs text-gray-500">
+                        Email cannot be changed
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
@@ -230,7 +249,8 @@ const Settings = () => {
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
+                          Saving...
                         </>
                       ) : (
                         <>
@@ -255,7 +275,9 @@ const Settings = () => {
                 {loadingRestaurant ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
-                    <span className="ml-2">Loading restaurant information...</span>
+                    <span className="ml-2">
+                      Loading restaurant information...
+                    </span>
                   </div>
                 ) : restaurant ? (
                   <div className="space-y-4">
@@ -272,10 +294,21 @@ const Settings = () => {
                         </div>
                       )}
                       <div>
-                        <h3 className="text-lg font-semibold">{restaurant.name}</h3>
+                        <h3 className="text-lg font-semibold">
+                          {restaurant.name}
+                        </h3>
                         {restaurant.address && (
                           <p className="text-sm text-gray-500 flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" /> {restaurant.address}
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {typeof restaurant.address === "string"
+                              ? restaurant.address
+                              : typeof restaurant.address === "object" &&
+                                  restaurant.address !== null
+                                ? Object.entries(restaurant.address)
+                                    .filter(([_, value]) => value)
+                                    .map(([key, value]) => `${value}`)
+                                    .join(", ")
+                                : String(restaurant.address)}
                           </p>
                         )}
                       </div>
@@ -283,20 +316,27 @@ const Settings = () => {
 
                     {restaurant.phone && (
                       <div className="text-sm">
-                        <span className="font-medium">Phone:</span> {restaurant.phone}
+                        <span className="font-medium">Phone: </span>
+                        {typeof restaurant.phone === "string"
+                          ? restaurant.phone
+                          : String(restaurant.phone)}
                       </div>
                     )}
 
                     {restaurant.email && (
                       <div className="text-sm">
-                        <span className="font-medium">Email:</span> {restaurant.email}
+                        <span className="font-medium">Email: </span>
+                        {typeof restaurant.email === "string"
+                          ? restaurant.email
+                          : String(restaurant.email)}
                       </div>
                     )}
 
                     <div className="text-sm">
                       <span className="font-medium">Role:</span>{" "}
                       <Badge className="bg-orange-500">
-                        {userProfile?.role.charAt(0).toUpperCase() + userProfile?.role.slice(1)}
+                        {userProfile?.role.charAt(0).toUpperCase() +
+                          userProfile?.role.slice(1)}
                       </Badge>
                     </div>
                   </div>
@@ -314,14 +354,17 @@ const Settings = () => {
                       )}
                       <Link to="/restaurants">
                         <Button variant="outline" className="w-full">
-                          <Store className="h-4 w-4 mr-2" /> Browse All Restaurants
+                          <Store className="h-4 w-4 mr-2" /> Browse All
+                          Restaurants
                         </Button>
                       </Link>
                     </div>
 
                     {/* Test buttons for development only */}
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 mb-2">Developer Options</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Developer Options
+                      </p>
                       <div className="flex flex-col space-y-2">
                         <Link to="/restaurants">
                           <Button
@@ -329,7 +372,8 @@ const Settings = () => {
                             size="sm"
                             className="w-full justify-start"
                           >
-                            <Store className="h-4 w-4 mr-2" /> View All Restaurants
+                            <Store className="h-4 w-4 mr-2" /> View All
+                            Restaurants
                           </Button>
                         </Link>
                         <Button
@@ -338,45 +382,54 @@ const Settings = () => {
                           onClick={async () => {
                             try {
                               // Use a known restaurant ID from your Firestore
-                              const testRestaurantId = '2N5qPT2UasAPyjTpDSUY'; // This is the ID we see in Firebase
+                              const testRestaurantId = "2N5qPT2UasAPyjTpDSUY"; // This is the ID we see in Firebase
 
                               // Create a dropdown to select the format of the restaurant_id
                               const format = window.prompt(
-                                'Select restaurant_id format:\n1. Full path (restaurants/ID)\n2. Document ID only\n3. Full path with leading slash (/restaurants/ID)\n4. All formats (recommended)\nEnter 1, 2, 3, or 4:',
-                                '4'
+                                "Select restaurant_id format:\n1. Full path (restaurants/ID)\n2. Document ID only\n3. Full path with leading slash (/restaurants/ID)\n4. All formats (recommended)\nEnter 1, 2, 3, or 4:",
+                                "4",
                               );
 
-                              if (format === '4') {
+                              if (format === "4") {
                                 // Set all formats to ensure compatibility
-                                console.log(`Setting all restaurant ID formats`);
+                                console.log(
+                                  `Setting all restaurant ID formats`,
+                                );
                                 await updateUserProfile({
                                   restaurant_id: `restaurants/${testRestaurantId}`,
                                   restaurantId: `restaurants/${testRestaurantId}`,
-                                  restaurants_id: `/restaurants/${testRestaurantId}`
+                                  restaurants_id: `/restaurants/${testRestaurantId}`,
                                 });
                               } else {
                                 let restaurant_id;
-                                if (format === '1') {
+                                if (format === "1") {
                                   restaurant_id = `restaurants/${testRestaurantId}`;
-                                } else if (format === '2') {
+                                } else if (format === "2") {
                                   restaurant_id = testRestaurantId;
-                                } else if (format === '3') {
+                                } else if (format === "3") {
                                   restaurant_id = `/restaurants/${testRestaurantId}`;
                                 } else {
                                   // Default to full path
                                   restaurant_id = `restaurants/${testRestaurantId}`;
                                 }
 
-                                console.log(`Setting restaurant_id to: ${restaurant_id}`);
+                                console.log(
+                                  `Setting restaurant_id to: ${restaurant_id}`,
+                                );
                                 await updateUserProfile({
-                                  restaurant_id: restaurant_id
+                                  restaurant_id: restaurant_id,
                                 });
                               }
 
-                              alert('User linked to test restaurant. Refresh the page to see changes.');
+                              alert(
+                                "User linked to test restaurant. Refresh the page to see changes.",
+                              );
                             } catch (error) {
-                              console.error('Error linking to test restaurant:', error);
-                              alert('Failed to link to test restaurant.');
+                              console.error(
+                                "Error linking to test restaurant:",
+                                error,
+                              );
+                              alert("Failed to link to test restaurant.");
                             }
                           }}
                         >
@@ -388,7 +441,9 @@ const Settings = () => {
                           size="sm"
                           onClick={() => {
                             console.log("Current user profile:", userProfile);
-                            alert('User profile logged to console. Press F12 to view.');
+                            alert(
+                              "User profile logged to console. Press F12 to view.",
+                            );
                           }}
                         >
                           Show User Profile
@@ -412,7 +467,8 @@ const Settings = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-500 py-8 text-center">
-                  Business details management will be implemented in a future update.
+                  Business details management will be implemented in a future
+                  update.
                 </p>
               </CardContent>
             </Card>
@@ -428,7 +484,8 @@ const Settings = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-500 py-8 text-center">
-                  Operating hours management will be implemented in a future update.
+                  Operating hours management will be implemented in a future
+                  update.
                 </p>
               </CardContent>
             </Card>
@@ -460,7 +517,8 @@ const Settings = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-500 py-8 text-center">
-                  Notification preferences will be implemented in a future update.
+                  Notification preferences will be implemented in a future
+                  update.
                 </p>
               </CardContent>
             </Card>
