@@ -83,7 +83,9 @@ const Layout = ({ children }: LayoutProps) => {
               <Bell className="h-6 w-6" />
               {unreadNotificationsCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                  {unreadNotificationsCount > 99
+                    ? "99+"
+                    : unreadNotificationsCount}
                 </span>
               )}
             </button>
@@ -183,14 +185,6 @@ const Layout = ({ children }: LayoutProps) => {
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
               </Link>
-              <Link
-                to="/restaurants"
-                className={`flex items-center space-x-2 p-2 ${isActive("/restaurants") ? "bg-orange-100 text-orange-500" : "hover:bg-gray-100"} rounded-lg`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Store className="h-5 w-5" />
-                <span>Restaurants</span>
-              </Link>
               <button
                 className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg text-red-500 w-full"
                 onClick={handleLogout}
@@ -253,7 +247,11 @@ const Layout = ({ children }: LayoutProps) => {
             <MessageSquare className="h-5 w-5" />
             <span>Messages</span>
             {unreadNotificationsCount > 0 && (
-              <Badge className="ml-1 bg-red-500">{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</Badge>
+              <Badge className="ml-1 bg-red-500">
+                {unreadNotificationsCount > 99
+                  ? "99+"
+                  : unreadNotificationsCount}
+              </Badge>
             )}
           </Link>
           <Link
@@ -263,17 +261,15 @@ const Layout = ({ children }: LayoutProps) => {
             <Settings className="h-5 w-5" />
             <span>Settings</span>
           </Link>
-          <Link
-            to="/restaurants"
-            className={`flex items-center justify-center space-x-1 ${isActive("/restaurants") ? "text-orange-500 font-medium" : "text-gray-600 hover:text-orange-500"}`}
-          >
-            <Store className="h-5 w-5" />
-            <span>Restaurants</span>
-          </Link>
         </div>
       </div>
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>{children}</main>
+      <main
+        className="flex-1 overflow-y-auto bg-gray-50 w-full"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {children}
+      </main>
     </div>
   );
 };
