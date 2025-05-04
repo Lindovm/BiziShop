@@ -490,3 +490,145 @@ export const shopDB = {
     }
   }
 };
+
+// Message-related database operations
+export const messageDB = {
+  // Create a new chat
+  createChat: async (chatData: any): Promise<string> => {
+    try {
+      // Generate a new ID
+      const chatId = Date.now().toString();
+
+      // Add timestamp
+      const chatWithTimestamp = {
+        ...chatData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        unreadCount: 0
+      };
+
+      // Store in Firestore
+      await firestoreDB.setDocument('chats', chatId, chatWithTimestamp);
+
+      return chatId;
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      throw error;
+    }
+  },
+
+  // Get all chats for a restaurant
+  getChatsByRestaurantId: async (restaurantId: string): Promise<DocumentData[]> => {
+    try {
+      const collectionRef = collection(firestore, 'chats');
+      const q = query(
+        collectionRef,
+        where('restaurantId', '==', restaurantId),
+        orderBy('updatedAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error(`Error getting chats for restaurant ${restaurantId}:`, error);
+      return [];
+    }
+  },
+
+  // Get a specific chat
+  getChat: async (chatId: string): Promise<DocumentData | null> => {
+    return firestoreDB.getDocument('chats', chatId);
+  },
+
+  // Update chat metadata
+  updateChat: async (chatId: string, data: any): Promise<void> => {
+    return firestoreDB.updateDocument('chats', chatId, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  // Send a message
+  sendMessage: async (messageData: any): Promise<string> => {
+    try {
+      // Generate a message ID
+      const messageId = Date.now().toString();
+
+      // Add timestamp
+      const messageWithTimestamp = {
+        ...messageData,
+        timestamp: new Date().toISOString(),
+        isRead: false
+      };
+
+      // Store in Firestore
+      await firestoreDB.setDocument('messages', messageId, messageWithTimestamp);
+
+      // Update the chat's last message info
+      await messageDB.updateChat(messageData.chatId, {
+        lastMessage: messageData.text,
+        lastMessageTimestamp: new Date().toISOString(),
+        lastMessageSender: messageData.sender,
+        unreadCount: messageData.sender === 'vendor' ? 0 : 1 // If sent by vendor, mark as read
+      });
+
+      return messageId;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+
+  // Get messages for a chat
+  getMessagesByChatId: async (chatId: string): Promise<DocumentData[]> => {
+    try {
+      const collectionRef = collection(firestore, 'messages');
+      const q = query(
+        collectionRef,
+        where('chatId', '==', chatId),
+        orderBy('timestamp', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error(`Error getting messages for chat ${chatId}:`, error);
+      return [];
+    }
+  },
+
+  // Mark messages as read
+  markMessagesAsRead: async (chatId: string): Promise<void> => {
+    try {
+      // Get all unread messages in this chat
+      const collectionRef = collection(firestore, 'messages');
+      const q = query(
+        collectionRef,
+        where('chatId', '==', chatId),
+        where('isRead', '==', false),
+        where('sender', '!=', 'vendor') // Only mark non-vendor messages as read
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Update each message
+      const updatePromises = querySnapshot.docs.map(docSnapshot => {
+        const docRef = doc(firestore, 'messages', docSnapshot.id);
+        return updateDoc(docRef, { isRead: true });
+      });
+
+      await Promise.all(updatePromises);
+
+      // Reset unread count in chat
+      await messageDB.updateChat(chatId, { unreadCount: 0 });
+    } catch (error) {
+      console.error(`Error marking messages as read for chat ${chatId}:`, error);
+      throw error;
+    }
+  }
+};

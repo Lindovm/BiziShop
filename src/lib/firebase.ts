@@ -74,15 +74,15 @@ export const hasAccess = (role: UserRole, path: string): boolean => {
   return roleAccess[role]?.includes(path) || false;
 };
 
-// Your Firebase configuration
+// Your Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyDgGOBNWqAgJk7P5goOuM-Q8LbQO-qnJvk",
-  authDomain: "bizibase.firebaseapp.com",
-  databaseURL: "https://bizibase-default-rtdb.firebaseio.com",
-  projectId: "bizibase",
-  storageBucket: "bizibase.firebasestorage.app",
-  messagingSenderId: "846283526881",
-  appId: "1:846283526881:web:e5e5075f46050985a55da0",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase

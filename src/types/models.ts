@@ -201,6 +201,35 @@ export interface Restaurant {
   updatedAt?: string;
 }
 
+// Message-related types
+export type MessageSenderType = 'customer' | 'vendor' | 'support' | 'driver' | 'admin';
+
+export interface Message {
+  id: string;
+  chatId: string;
+  sender: MessageSenderType;
+  senderId: string;
+  text: string;
+  timestamp: string;
+  isRead: boolean;
+  orderId?: string;
+}
+
+export interface Chat {
+  id: string;
+  participants: string[]; // Array of user IDs
+  restaurantId: string;
+  lastMessage?: string;
+  lastMessageTimestamp?: string;
+  lastMessageSender?: string;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  customerName?: string;
+  customerAvatar?: string;
+  orderId?: string;
+}
+
 // Settings-related types
 export interface ShopSettings {
   id: string;
