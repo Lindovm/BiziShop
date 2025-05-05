@@ -302,7 +302,7 @@ export const inventoryDB = {
 export const menuDB = {
   // Add or update menu item
   setMenuItem: async (itemId: string, itemData: any): Promise<void> => {
-    return firestoreDB.setDocument('menu', itemId, {
+    return firestoreDB.setDocument('products', itemId, {
       ...itemData,
       updatedAt: new Date().toISOString()
     });
@@ -310,17 +310,43 @@ export const menuDB = {
 
   // Get all menu items
   getAllMenuItems: async (): Promise<DocumentData[]> => {
-    return firestoreDB.getCollection('menu');
+    return firestoreDB.getCollection('products');
+  },
+
+  // Get menu items by restaurant
+  getMenuItemsByRestaurant: async (restaurantId: string): Promise<DocumentData[]> => {
+    return firestoreDB.queryCollection('products', 'restaurant_id', '==', restaurantId);
   },
 
   // Get menu items by category
   getMenuItemsByCategory: async (category: string): Promise<DocumentData[]> => {
-    return firestoreDB.queryCollection('menu', 'category', '==', category);
+    return firestoreDB.queryCollection('products', 'category', '==', category);
+  },
+
+  // Get menu items by restaurant and category
+  getMenuItemsByRestaurantAndCategory: async (restaurantId: string, category: string): Promise<DocumentData[]> => {
+    try {
+      const collectionRef = collection(firestore, 'products');
+      const q = query(
+        collectionRef,
+        where('restaurant_id', '==', restaurantId),
+        where('category', '==', category)
+      );
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error(`Error getting products for restaurant ${restaurantId} and category ${category}:`, error);
+      return [];
+    }
   },
 
   // Delete menu item
   deleteMenuItem: async (itemId: string): Promise<void> => {
-    return firestoreDB.deleteDocument('menu', itemId);
+    return firestoreDB.deleteDocument('products', itemId);
   }
 };
 

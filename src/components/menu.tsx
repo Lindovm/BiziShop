@@ -1,16 +1,41 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
-import { Edit, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Plus, Search, Trash2, List } from "lucide-react";
 import Layout from "./Layout";
 import { useShop } from "../contexts/ShopContext";
 import { formatCurrency } from "../lib/utils";
+import AddItemForm from "./AddItemForm";
+import { addFoodCategories } from "../lib/add-food-categories";
+import TestAddItem from "./TestAddItem";
 
 const Menu = () => {
-  const { products, categories, loadingProducts, loadingCategories } = useShop();
+  const { products, categories, loadingProducts, loadingCategories, refreshProducts, refreshCategories } = useShop();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
+  const [isAddingCategories, setIsAddingCategories] = useState(false);
+
+  // Function to add food categories
+  const handleAddFoodCategories = async () => {
+    try {
+      setIsAddingCategories(true);
+      await addFoodCategories();
+      await refreshCategories();
+      alert("Categories have been reset to the specified food categories!");
+    } catch (error) {
+      console.error("Error adding food categories:", error);
+      alert("Failed to reset categories. Please try again.");
+    } finally {
+      setIsAddingCategories(false);
+    }
+  };
+
+  // Add categories when component mounts
+  useEffect(() => {
+    handleAddFoodCategories();
+  }, []);
 
   // Group products by category
   const productsByCategory = products.reduce((acc, product) => {
@@ -46,10 +71,18 @@ const Menu = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button className="bg-orange-500 hover:bg-orange-600">
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => setIsAddItemDialogOpen(true)}
+            >
               <Plus className="h-4 w-4 mr-2" /> Add Item
             </Button>
           </div>
+        </div>
+
+        {/* Test component for direct Firestore access */}
+        <div className="mb-4">
+          <TestAddItem />
         </div>
 
         <Tabs defaultValue="all" className="w-full">
@@ -89,7 +122,10 @@ const Menu = () => {
                   <p className="text-gray-500">
                     {searchTerm ? 'No items match your search.' : 'No menu items have been added yet.'}
                   </p>
-                  <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
+                  <Button
+                    className="mt-4 bg-orange-500 hover:bg-orange-600"
+                    onClick={() => setIsAddItemDialogOpen(true)}
+                  >
                     <Plus className="h-4 w-4 mr-2" /> Add First Item
                   </Button>
                 </CardContent>
@@ -173,7 +209,10 @@ const Menu = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-500">No items in this category yet.</p>
-                    <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
+                    <Button
+                      className="mt-4 bg-orange-500 hover:bg-orange-600"
+                      onClick={() => setIsAddItemDialogOpen(true)}
+                    >
                       <Plus className="h-4 w-4 mr-2" /> Add {category.name} Item
                     </Button>
                   </CardContent>
@@ -242,6 +281,13 @@ const Menu = () => {
           ))}
         </Tabs>
       </div>
+
+      {/* Add Item Dialog */}
+      <AddItemForm
+        open={isAddItemDialogOpen}
+        onOpenChange={setIsAddItemDialogOpen}
+        onSuccess={refreshProducts}
+      />
     </Layout>
   );
 };

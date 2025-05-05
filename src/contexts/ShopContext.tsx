@@ -24,6 +24,8 @@ import {
   limit,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { ensureCategories } from "../lib/category-manager";
+import { addFoodCategories } from "../lib/add-food-categories";
 
 interface ShopContextType {
   // Products and categories
@@ -52,6 +54,7 @@ interface ShopContextType {
 
   // Functions
   refreshProducts: () => Promise<void>;
+  refreshCategories: () => Promise<void>;
   refreshInventory: () => Promise<void>;
   refreshOrders: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
@@ -116,22 +119,55 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
         setLoadingProducts(true);
         setLoadingCategories(true);
 
-        // Set up real-time listener for products
-        const productsQuery = query(
-          collection(firestore, "products"),
-          where("isAvailable", "==", true),
-          orderBy("name"),
+        // Get the restaurant ID from the current user's profile
+        const userProfile = await firestoreDB.getDocument(
+          "users",
+          currentUser.uid,
         );
+        const restaurantId = userProfile?.restaurant_id;
 
-        unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
-          const productsData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Product[];
+        if (restaurantId) {
+          console.log(`Loading products for restaurant: ${restaurantId}`);
 
-          setProducts(productsData);
-          setLoadingProducts(false);
-        });
+          // Set up real-time listener for products filtered by restaurant
+          const productsQuery = query(
+            collection(firestore, "products"),
+            where("restaurant_id", "==", restaurantId),
+            orderBy("name"),
+          );
+
+          unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
+            const productsData = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            })) as Product[];
+
+            console.log(`Loaded ${productsData.length} products for restaurant ${restaurantId}`);
+            setProducts(productsData);
+            setLoadingProducts(false);
+          });
+        } else {
+          console.log("No restaurant ID found for user, loading all products");
+
+          // If no restaurant ID, fall back to all products
+          const productsQuery = query(
+            collection(firestore, "products"),
+            orderBy("name"),
+          );
+
+          unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
+            const productsData = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            })) as Product[];
+
+            setProducts(productsData);
+            setLoadingProducts(false);
+          });
+        }
+
+        // Add the specific food categories to the database
+        await addFoodCategories();
 
         // Set up real-time listener for categories
         const categoriesQuery = query(
@@ -145,6 +181,7 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
             ...doc.data(),
           })) as Category[];
 
+          console.log(`Loaded ${categoriesData.length} categories from Firestore`);
           setCategories(categoriesData);
           setLoadingCategories(false);
         });
@@ -427,14 +464,57 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
 
   // Function to refresh products
   const refreshProducts = async () => {
+    if (!currentUser) return;
+
     try {
       setLoadingProducts(true);
-      const productsData = await menuDB.getAllMenuItems();
+
+      // Get the restaurant ID from the current user's profile
+      const userProfile = await firestoreDB.getDocument(
+        "users",
+        currentUser.uid,
+      );
+      const restaurantId = userProfile?.restaurant_id;
+
+      let productsData;
+      if (restaurantId) {
+        // Get products for this restaurant
+        productsData = await menuDB.getMenuItemsByRestaurant(restaurantId);
+        console.log(`Refreshed ${productsData.length} products for restaurant ${restaurantId}`);
+      } else {
+        // Fallback to all products
+        productsData = await menuDB.getAllMenuItems();
+        console.log(`Refreshed ${productsData.length} products (all restaurants)`);
+      }
+
       setProducts(productsData as Product[]);
     } catch (error) {
       console.error("Error refreshing products:", error);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  // Function to refresh categories
+  const refreshCategories = async () => {
+    try {
+      setLoadingCategories(true);
+
+      // Add the specific food categories to the database
+      await addFoodCategories();
+
+      // Get all categories
+      const categoriesData = await firestoreDB.getCollection('categories');
+      console.log(`Refreshed ${categoriesData.length} categories`);
+
+      // Sort categories by order
+      categoriesData.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      setCategories(categoriesData as Category[]);
+    } catch (error) {
+      console.error("Error refreshing categories:", error);
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
@@ -613,6 +693,7 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
 
     // Functions
     refreshProducts,
+    refreshCategories,
     refreshInventory,
     refreshOrders,
     refreshNotifications,
