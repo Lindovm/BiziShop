@@ -315,7 +315,46 @@ export const menuDB = {
 
   // Get menu items by restaurant
   getMenuItemsByRestaurant: async (restaurantId: string): Promise<DocumentData[]> => {
-    return firestoreDB.queryCollection('products', 'restaurant_id', '==', restaurantId);
+    try {
+      console.log(`Getting menu items for restaurant ID: ${restaurantId}`);
+
+      // Try with the direct ID first
+      const directResults = await firestoreDB.queryCollection('products', 'restaurant_id', '==', restaurantId);
+      console.log(`Found ${directResults.length} items with direct ID match`);
+
+      // Also try with path format
+      const pathFormat = `/restaurants/${restaurantId}`;
+      const pathResults = await firestoreDB.queryCollection('products', 'restaurant_id', '==', pathFormat);
+      console.log(`Found ${pathResults.length} items with path format: ${pathFormat}`);
+
+      // Also try with path format without leading slash
+      const pathFormatNoSlash = `restaurants/${restaurantId}`;
+      const noSlashResults = await firestoreDB.queryCollection('products', 'restaurant_id', '==', pathFormatNoSlash);
+      console.log(`Found ${noSlashResults.length} items with path format without leading slash: ${pathFormatNoSlash}`);
+
+      // Combine results, avoiding duplicates
+      const allResults = [...directResults];
+
+      // Add path format results if not already included
+      pathResults.forEach(item => {
+        if (!allResults.some(existing => existing.id === item.id)) {
+          allResults.push(item);
+        }
+      });
+
+      // Add no-slash format results if not already included
+      noSlashResults.forEach(item => {
+        if (!allResults.some(existing => existing.id === item.id)) {
+          allResults.push(item);
+        }
+      });
+
+      console.log(`Returning ${allResults.length} total items for restaurant ${restaurantId}`);
+      return allResults;
+    } catch (error) {
+      console.error(`Error getting menu items for restaurant ${restaurantId}:`, error);
+      return [];
+    }
   },
 
   // Get menu items by category

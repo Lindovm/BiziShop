@@ -130,6 +130,10 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
       }
 
       // Prepare the item data
+      // Ensure restaurant_id is in the correct format
+      const restaurantId = userRestaurant.id;
+      console.log(`Using restaurant ID for new item: ${restaurantId}`);
+
       const itemData = {
         name: data.name,
         description: data.description,
@@ -137,7 +141,8 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
         isAvailable: data.isAvailable,
         category: "uncategorized", // Add a default category
         imageUrl,
-        restaurant_id: userRestaurant.id,
+        // Store restaurant_id in the format that matches what we see in Firebase
+        restaurant_id: restaurantId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

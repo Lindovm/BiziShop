@@ -124,15 +124,27 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
           "users",
           currentUser.uid,
         );
-        const restaurantId = userProfile?.restaurant_id;
+
+        // Handle different formats of restaurant_id
+        let restaurantId = userProfile?.restaurant_id;
+
+        // If it's a path like "/restaurants/id" or "restaurants/id", extract just the ID
+        if (typeof restaurantId === 'string' && restaurantId.includes('/')) {
+          const parts = restaurantId.split('/');
+          restaurantId = parts[parts.length - 1]; // Get the last part which should be the ID
+          console.log(`Extracted restaurant ID from path: ${restaurantId}`);
+        }
 
         if (restaurantId) {
           console.log(`Loading products for restaurant: ${restaurantId}`);
 
+          // Try both formats - with full path and just ID
+          console.log(`Trying to query products with restaurant_id = "${restaurantId}"`);
+
           // Set up real-time listener for products filtered by restaurant
           const productsQuery = query(
             collection(firestore, "products"),
-            where("restaurant_id", "==", restaurantId),
+            where("restaurant_id", "in", [restaurantId, `/restaurants/${restaurantId}`, `restaurants/${restaurantId}`]),
             orderBy("name"),
           );
 
@@ -165,9 +177,6 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
             setLoadingProducts(false);
           });
         }
-
-        // Add the specific food categories to the database
-        await addFoodCategories();
 
         // Set up real-time listener for categories
         const categoriesQuery = query(
@@ -474,16 +483,51 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
         "users",
         currentUser.uid,
       );
-      const restaurantId = userProfile?.restaurant_id;
+
+      // Handle different formats of restaurant_id
+      let restaurantId = userProfile?.restaurant_id;
+
+      // If it's a path like "/restaurants/id" or "restaurants/id", extract just the ID
+      if (typeof restaurantId === 'string' && restaurantId.includes('/')) {
+        const parts = restaurantId.split('/');
+        restaurantId = parts[parts.length - 1]; // Get the last part which should be the ID
+        console.log(`Extracted restaurant ID from path: ${restaurantId}`);
+      }
+
+      console.log(`Refreshing products for restaurant ID: ${restaurantId || 'none'}`);
+
+      // Try to get all products first to see what's in the database
+      const allProducts = await menuDB.getAllMenuItems();
+      console.log(`Found ${allProducts.length} total products in database`);
+
+      // Log each product's restaurant_id for debugging
+      allProducts.forEach(product => {
+        console.log(`Product ${product.id} (${product.name}) has restaurant_id: ${product.restaurant_id}`);
+      });
 
       let productsData;
       if (restaurantId) {
-        // Get products for this restaurant
-        productsData = await menuDB.getMenuItemsByRestaurant(restaurantId);
-        console.log(`Refreshed ${productsData.length} products for restaurant ${restaurantId}`);
+        // Try to get products with exact restaurant ID match
+        const exactMatch = await menuDB.getMenuItemsByRestaurant(restaurantId);
+        console.log(`Found ${exactMatch.length} products with exact restaurant_id match: ${restaurantId}`);
+
+        // Also try with path format
+        const pathFormat = `/restaurants/${restaurantId}`;
+        const pathMatch = allProducts.filter(p => p.restaurant_id === pathFormat);
+        console.log(`Found ${pathMatch.length} products with path format: ${pathFormat}`);
+
+        // Combine results
+        productsData = [...exactMatch];
+        pathMatch.forEach(p => {
+          if (!productsData.some(existing => existing.id === p.id)) {
+            productsData.push(p);
+          }
+        });
+
+        console.log(`Refreshed ${productsData.length} total products for restaurant ${restaurantId}`);
       } else {
         // Fallback to all products
-        productsData = await menuDB.getAllMenuItems();
+        productsData = allProducts;
         console.log(`Refreshed ${productsData.length} products (all restaurants)`);
       }
 
@@ -499,9 +543,6 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
   const refreshCategories = async () => {
     try {
       setLoadingCategories(true);
-
-      // Add the specific food categories to the database
-      await addFoodCategories();
 
       // Get all categories
       const categoriesData = await firestoreDB.getCollection('categories');
