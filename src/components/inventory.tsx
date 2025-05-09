@@ -304,9 +304,21 @@ const Inventory = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading && <p>Loading inventory...</p>}
-                {error && <p className="text-red-500">{error}</p>}
-                {!loading && !error && (
+                {loading && <p className="text-center py-8">Loading inventory...</p>}
+                {error && <p className="text-red-500 text-center py-8">{error}</p>}
+                {!loading && !error && inventoryItems.length === 0 && (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">No Inventory Items Yet</h3>
+                    <p className="text-gray-500 mb-6">
+                      It looks like you haven't added any inventory items.
+                    </p>
+                    <Button className="bg-orange-500 hover:bg-orange-600">
+                      <Plus className="h-4 w-4 mr-2" /> Add Your First Item
+                    </Button>
+                  </div>
+                )}
+                {!loading && !error && inventoryItems.length > 0 && (
                   <>
                     {/* Desktop Table View */}
                     <div className="hidden md:block overflow-x-auto">
