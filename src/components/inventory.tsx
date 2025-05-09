@@ -97,9 +97,17 @@ const Inventory = () => {
           };
         });
         setInventoryItems(enrichedItems);
+        // Clear any previous error if data fetching is successful, even if empty
+        setError(null); 
       } catch (err) {
-        console.error("Failed to fetch inventory data:", err);
-        setError("Failed to load inventory data. Please try again later.");
+        // Only set an error if it's a real error object
+        if (err instanceof Error) {
+          console.error("Failed to fetch inventory data:", err);
+          setError(`Failed to load inventory data: ${err.message}. Please try again later.`);
+        } else {
+          console.error("An unknown error occurred while fetching inventory data:", err);
+          setError("An unknown error occurred. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
@@ -135,10 +143,14 @@ const Inventory = () => {
         });
 
         setSuppliers(suppliersData);
+        // setError(null); // Potentially clear error here too if suppliers load successfully
       } catch (err) {
         console.error("Failed to fetch suppliers:", err);
+        // Optionally set an error specific to suppliers, or a general one if this is critical
+        // For now, let's not set a page-wide error for supplier loading failure
+        // setError("Failed to load supplier data."); 
       } finally {
-        setLoading(false);
+        setLoading(false); // This might be called multiple times if all useEffects run
       }
     };
 
@@ -183,10 +195,13 @@ const Inventory = () => {
         });
 
         setUpcomingDeliveries(deliveriesData);
+        // setError(null); // Potentially clear error here too
       } catch (err) {
         console.error("Failed to fetch deliveries:", err);
+        // Optionally set an error specific to deliveries
+        // setError("Failed to load delivery data.");
       } finally {
-        setLoading(false);
+        setLoading(false); // This might be called multiple times
       }
     };
 
