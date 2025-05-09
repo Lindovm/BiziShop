@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Button } from "./ui/button";
@@ -22,235 +22,187 @@ import {
   Trash2,
 } from "lucide-react";
 import Layout from "./Layout";
+import { inventoryDB, menuDB, firestoreDB } from "../lib/firebase-db";
+import { InventoryItem, Product, Supplier } from "../types/models";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 
-interface InventoryItem {
-  id: string;
+interface DisplayableInventoryItem extends InventoryItem {
   name: string;
   category: string;
-  currentStock: number;
-  minStock: number;
+}
+
+interface DisplayableSupplier extends Supplier {
+  lastOrder?: string;
+  itemsSupplied: string[];
+  contact?: string; // For backward compatibility
+}
+
+interface DeliveryItem {
+  inventoryItemId: string;
+  productId: string;
+  quantity: number;
   unit: string;
-  lastRestocked: string;
-  supplier: string;
-  price: number;
-  status: "ok" | "low" | "critical";
+  cost: number;
+  totalCost: number;
+}
+
+interface Delivery {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  orderDate: string;
+  expectedDeliveryDate: string;
+  status: 'pending' | 'confirmed' | 'shipped' | 'scheduled';
+  items: DeliveryItem[];
+  totalCost: number;
+  notes?: string;
+  restaurant_id: string;
+  createdAt: string;
+  updatedAt: string;
+  // For backward compatibility with the UI
+  supplier?: string;
+  date?: string;
+  time?: string;
 }
 
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<DisplayableInventoryItem[]>([]);
+  const [suppliers, setSuppliers] = useState<DisplayableSupplier[]>([]);
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState<Delivery[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const inventoryItems: InventoryItem[] = [
-    {
-      id: "1",
-      name: "Corn Tortillas",
-      category: "Ingredients",
-      currentStock: 120,
-      minStock: 50,
-      unit: "pieces",
-      lastRestocked: "2023-06-18",
-      supplier: "Mexican Foods Inc.",
-      price: 0.15,
-      status: "ok",
-    },
-    {
-      id: "2",
-      name: "Ground Beef",
-      category: "Ingredients",
-      currentStock: 8,
-      minStock: 10,
-      unit: "lbs",
-      lastRestocked: "2023-06-20",
-      supplier: "Local Meats",
-      price: 4.99,
-      status: "low",
-    },
-    {
-      id: "3",
-      name: "Shredded Cheese",
-      category: "Ingredients",
-      currentStock: 5,
-      minStock: 8,
-      unit: "lbs",
-      lastRestocked: "2023-06-19",
-      supplier: "Dairy Distributors",
-      price: 3.5,
-      status: "low",
-    },
-    {
-      id: "4",
-      name: "Tomatoes",
-      category: "Produce",
-      currentStock: 15,
-      minStock: 10,
-      unit: "lbs",
-      lastRestocked: "2023-06-21",
-      supplier: "Fresh Farms",
-      price: 1.99,
-      status: "ok",
-    },
-    {
-      id: "5",
-      name: "Lettuce",
-      category: "Produce",
-      currentStock: 6,
-      minStock: 5,
-      unit: "heads",
-      lastRestocked: "2023-06-21",
-      supplier: "Fresh Farms",
-      price: 1.5,
-      status: "ok",
-    },
-    {
-      id: "6",
-      name: "Onions",
-      category: "Produce",
-      currentStock: 8,
-      minStock: 10,
-      unit: "lbs",
-      lastRestocked: "2023-06-20",
-      supplier: "Fresh Farms",
-      price: 0.99,
-      status: "low",
-    },
-    {
-      id: "7",
-      name: "Flour Tortillas",
-      category: "Ingredients",
-      currentStock: 2,
-      minStock: 30,
-      unit: "pieces",
-      lastRestocked: "2023-06-15",
-      supplier: "Mexican Foods Inc.",
-      price: 0.2,
-      status: "critical",
-    },
-    {
-      id: "8",
-      name: "Chicken Breast",
-      category: "Ingredients",
-      currentStock: 12,
-      minStock: 15,
-      unit: "lbs",
-      lastRestocked: "2023-06-19",
-      supplier: "Local Meats",
-      price: 3.99,
-      status: "low",
-    },
-    {
-      id: "9",
-      name: "Salsa",
-      category: "Sauces",
-      currentStock: 8,
-      minStock: 5,
-      unit: "jars",
-      lastRestocked: "2023-06-18",
-      supplier: "Mexican Foods Inc.",
-      price: 2.99,
-      status: "ok",
-    },
-    {
-      id: "10",
-      name: "Guacamole",
-      category: "Sauces",
-      currentStock: 3,
-      minStock: 5,
-      unit: "lbs",
-      lastRestocked: "2023-06-20",
-      supplier: "Fresh Farms",
-      price: 4.5,
-      status: "low",
-    },
-  ];
+  // Fetch inventory items
+  useEffect(() => {
+    const fetchInventoryData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [rawInventoryItems, productsData] = await Promise.all([
+          inventoryDB.getAllInventoryItems() as Promise<InventoryItem[]>,
+          menuDB.getAllMenuItems() as Promise<Product[]>
+        ]);
 
-  const suppliers = [
-    {
-      id: "1",
-      name: "Mexican Foods Inc.",
-      contact: "John Rodriguez",
-      phone: "(555) 123-4567",
-      email: "orders@mexicanfoodsinc.com",
-      address: "123 Food Supplier St, Austin, TX",
-      lastOrder: "2023-06-18",
-      itemsSupplied: ["Corn Tortillas", "Flour Tortillas", "Salsa", "Chips"],
-    },
-    {
-      id: "2",
-      name: "Local Meats",
-      contact: "Sarah Johnson",
-      phone: "(555) 987-6543",
-      email: "orders@localmeats.com",
-      address: "456 Butcher Ave, Austin, TX",
-      lastOrder: "2023-06-20",
-      itemsSupplied: ["Ground Beef", "Chicken Breast", "Steak"],
-    },
-    {
-      id: "3",
-      name: "Fresh Farms",
-      contact: "Mike Williams",
-      phone: "(555) 456-7890",
-      email: "orders@freshfarms.com",
-      address: "789 Produce Lane, Austin, TX",
-      lastOrder: "2023-06-21",
-      itemsSupplied: ["Tomatoes", "Lettuce", "Onions", "Avocados"],
-    },
-    {
-      id: "4",
-      name: "Dairy Distributors",
-      contact: "Lisa Chen",
-      phone: "(555) 234-5678",
-      email: "orders@dairydist.com",
-      address: "321 Milk Road, Austin, TX",
-      lastOrder: "2023-06-19",
-      itemsSupplied: ["Shredded Cheese", "Sour Cream", "Butter"],
-    },
-  ];
+        const productsMap = new Map(productsData.map(p => [p.id, p]));
 
-  const upcomingDeliveries = [
-    {
-      id: "1",
-      supplier: "Mexican Foods Inc.",
-      date: "2023-06-23",
-      time: "10:00 AM",
-      items: [
-        "Corn Tortillas (200 pcs)",
-        "Flour Tortillas (150 pcs)",
-        "Salsa (10 jars)",
-      ],
-      status: "scheduled",
-    },
-    {
-      id: "2",
-      supplier: "Local Meats",
-      date: "2023-06-24",
-      time: "8:30 AM",
-      items: ["Ground Beef (15 lbs)", "Chicken Breast (20 lbs)"],
-      status: "confirmed",
-    },
-    {
-      id: "3",
-      supplier: "Fresh Farms",
-      date: "2023-06-25",
-      time: "9:15 AM",
-      items: [
-        "Tomatoes (20 lbs)",
-        "Lettuce (10 heads)",
-        "Onions (15 lbs)",
-        "Avocados (30 pcs)",
-      ],
-      status: "pending",
-    },
-  ];
+        const enrichedItems = rawInventoryItems.map(item => {
+          const product = productsMap.get(item.productId);
+          return {
+            ...item,
+            name: product?.name || item.productId || 'Unknown Product', // Fallback to productId if name not found
+            category: product?.category || 'Unknown Category',
+          };
+        });
+        setInventoryItems(enrichedItems);
+      } catch (err) {
+        console.error("Failed to fetch inventory data:", err);
+        setError("Failed to load inventory data. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInventoryData();
+  }, []);
+
+  // Fetch suppliers
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setLoading(true);
+        const suppliersRef = collection(firestore, 'suppliers');
+        const suppliersQuery = query(suppliersRef, orderBy('name'));
+        const suppliersSnapshot = await getDocs(suppliersQuery);
+
+        const suppliersData = suppliersSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || 'Unknown Supplier',
+            contactPerson: data.contactPerson || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            address: data.address || '',
+            notes: data.notes || '',
+            lastOrder: data.lastOrder || 'N/A',
+            itemsSupplied: data.itemsSupplied || [],
+            restaurant_id: data.restaurant_id || '',
+            contact: data.contactPerson || '', // For backward compatibility
+          } as DisplayableSupplier;
+        });
+
+        setSuppliers(suppliersData);
+      } catch (err) {
+        console.error("Failed to fetch suppliers:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+  // Fetch upcoming deliveries
+  useEffect(() => {
+    const fetchDeliveries = async () => {
+      try {
+        setLoading(true);
+        const deliveriesRef = collection(firestore, 'deliveries');
+        const deliveriesQuery = query(deliveriesRef, orderBy('expectedDeliveryDate'));
+        const deliveriesSnapshot = await getDocs(deliveriesQuery);
+
+        const deliveriesData = deliveriesSnapshot.docs.map(doc => {
+          const data = doc.data();
+
+          // Format the date and time from expectedDeliveryDate
+          const deliveryDate = data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : new Date();
+          const formattedDate = deliveryDate.toISOString().split('T')[0];
+          const formattedTime = deliveryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          return {
+            id: doc.id,
+            supplierId: data.supplierId || '',
+            supplierName: data.supplierName || 'Unknown Supplier',
+            orderDate: data.orderDate || '',
+            expectedDeliveryDate: data.expectedDeliveryDate || '',
+            status: data.status || 'pending',
+            items: data.items || [],
+            totalCost: data.totalCost || 0,
+            notes: data.notes || '',
+            restaurant_id: data.restaurant_id || '',
+            createdAt: data.createdAt || '',
+            updatedAt: data.updatedAt || '',
+            // For backward compatibility with the UI
+            supplier: data.supplierName || 'Unknown Supplier',
+            date: formattedDate,
+            time: formattedTime
+          } as Delivery;
+        });
+
+        setUpcomingDeliveries(deliveriesData);
+      } catch (err) {
+        console.error("Failed to fetch deliveries:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeliveries();
+  }, []);
 
   const filteredItems = inventoryItems
     .filter((item) => {
+      if (!item) return false;
       if (showLowStockOnly) {
-        return item.status === "low" || item.status === "critical";
+        return item.status === "low" || item.status === "out";
       }
       return true;
     })
     .filter((item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   const getStockPercentage = (current: number, min: number) => {
@@ -260,13 +212,13 @@ const Inventory = () => {
     return Math.min(Math.max(percentage, 0), 100);
   };
 
-  const getStockColor = (status: string) => {
+  const getStockColor = (status: 'ok' | 'low' | 'out') => { // Use the type from InventoryItem
     switch (status) {
-      case "critical":
+      case "out": // Assuming 'critical' maps to 'out'
         return "bg-red-500";
       case "low":
         return "bg-yellow-500";
-      default:
+      default: // 'ok'
         return "bg-green-500";
     }
   };
@@ -319,7 +271,7 @@ const Inventory = () => {
               <TabsTrigger value="low-stock" className="flex-1">
                 Low Stock
                 <Badge className="ml-2 bg-red-100 text-red-800">
-                  {inventoryItems.filter((item) => item.status !== "ok").length}
+                  {inventoryItems.filter((item) => item && item.status !== "ok").length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="suppliers" className="flex-1">
@@ -352,201 +304,207 @@ const Inventory = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Item
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Category
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Stock Level
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Min. Stock
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Supplier
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Last Restocked
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredItems.map((item) => (
-                        <tr
-                          key={item.id}
-                          className="border-b border-gray-100 hover:bg-gray-50"
-                        >
-                          <td className="py-3 px-4">
-                            <div className="font-medium">{item.name}</div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="outline" className="font-normal">
-                              {item.category}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-24">
-                                <Progress
-                                  value={getStockPercentage(
-                                    item.currentStock,
-                                    item.minStock,
-                                  )}
-                                  className={getStockColor(item.status)}
-                                />
-                              </div>
-                              <span
-                                className={`text-sm ${item.status === "critical" ? "text-red-600 font-medium" : item.status === "low" ? "text-yellow-600" : "text-gray-600"}`}
-                              >
-                                {item.currentStock} {item.unit}
-                              </span>
-                              {item.status === "critical" && (
-                                <Badge className="bg-red-100 text-red-800 text-xs">
-                                  Critical
-                                </Badge>
-                              )}
-                              {item.status === "low" && (
-                                <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                                  Low
-                                </Badge>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {item.minStock} {item.unit}
-                          </td>
-                          <td className="py-3 px-4 text-sm">{item.supplier}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {item.lastRestocked}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-4">
-                  {filteredItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="border rounded-lg overflow-hidden bg-white"
-                    >
-                      <div className="p-4 border-b border-gray-100">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium">{item.name}</div>
-                            <Badge
-                              variant="outline"
-                              className="font-normal mt-1"
-                            >
-                              {item.category}
-                            </Badge>
-                          </div>
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 space-y-3">
-                        <div>
-                          <div className="text-sm font-medium text-gray-500 mb-1">
-                            Stock Level
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-full max-w-[120px]">
-                              <Progress
-                                value={getStockPercentage(
-                                  item.currentStock,
-                                  item.minStock,
-                                )}
-                                className={getStockColor(item.status)}
-                              />
-                            </div>
-                            <span
-                              className={`text-sm ${item.status === "critical" ? "text-red-600 font-medium" : item.status === "low" ? "text-yellow-600" : "text-gray-600"}`}
-                            >
-                              {item.currentStock} {item.unit}
-                            </span>
-                            {item.status === "critical" && (
-                              <Badge className="bg-red-100 text-red-800 text-xs">
-                                Critical
-                              </Badge>
-                            )}
-                            {item.status === "low" && (
-                              <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                                Low
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <div className="font-medium text-gray-500">
+                {loading && <p>Loading inventory...</p>}
+                {error && <p className="text-red-500">{error}</p>}
+                {!loading && !error && (
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
+                              Item
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
+                              Category
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
+                              Stock Level
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
                               Min. Stock
-                            </div>
-                            <div>
-                              {item.minStock} {item.unit}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-500">
-                              Last Restocked
-                            </div>
-                            <div>{item.lastRestocked}</div>
-                          </div>
-                          <div className="col-span-2">
-                            <div className="font-medium text-gray-500">
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
                               Supplier
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
+                              Last Restocked
+                            </th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredItems.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="border-b border-gray-100 hover:bg-gray-50"
+                            >
+                              <td className="py-3 px-4">
+                                <div className="font-medium">{item.name}</div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge variant="outline" className="font-normal">
+                                  {item.category}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-24">
+                                    <Progress
+                                      value={getStockPercentage(
+                                        item.currentStock,
+                                        item.minStock,
+                                      )}
+                                      className={getStockColor(item.status)}
+                                    />
+                                  </div>
+                                  <span
+                                    className={`text-sm ${item.status === "out" ? "text-red-600 font-medium" : item.status === "low" ? "text-yellow-600" : "text-gray-600"}`}
+                                  >
+                                    {item.currentStock} {item.unit}
+                                  </span>
+                                  {item.status === "out" && (
+                                    <Badge className="bg-red-100 text-red-800 text-xs">
+                                      Out of Stock
+                                    </Badge>
+                                  )}
+                                  {item.status === "low" && (
+                                    <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                                      Low
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {item.minStock} {item.unit}
+                              </td>
+                              <td className="py-3 px-4 text-sm">{item.supplier || 'N/A'}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {item.lastRestocked || 'N/A'}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                      {filteredItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="border rounded-lg overflow-hidden bg-white"
+                        >
+                          <div className="p-4 border-b border-gray-100">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">{item.name}</div>
+                                <Badge
+                                  variant="outline"
+                                  className="font-normal mt-1"
+                                >
+                                  {item.category}
+                                </Badge>
+                              </div>
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <div>{item.supplier}</div>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            <div>
+                              <div className="text-sm font-medium text-gray-500 mb-1">
+                                Stock Level
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-full max-w-[120px]">
+                                  <Progress
+                                    value={getStockPercentage(
+                                      item.currentStock,
+                                      item.minStock,
+                                    )}
+                                    className={getStockColor(item.status)}
+                                  />
+                                </div>
+                                <span
+                                  className={`text-sm ${item.status === "out" ? "text-red-600 font-medium" : item.status === "low" ? "text-yellow-600" : "text-gray-600"}`}
+                                >
+                                  {item.currentStock} {item.unit}
+                                </span>
+                                {item.status === "out" && (
+                                  <Badge className="bg-red-100 text-red-800 text-xs">
+                                    Out of Stock
+                                  </Badge>
+                                )}
+                                {item.status === "low" && (
+                                  <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                                    Low
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <div className="font-medium text-gray-500">
+                                  Min. Stock
+                                </div>
+                                <div>
+                                  {item.minStock} {item.unit}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-500">
+                                  Last Restocked
+                                </div>
+                                <div>{item.lastRestocked || 'N/A'}</div>
+                              </div>
+                              <div className="col-span-2">
+                                <div className="font-medium text-gray-500">
+                                  Supplier
+                                </div>
+                                <div>{item.supplier || 'N/A'}</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -559,7 +517,7 @@ const Inventory = () => {
               <CardContent>
                 <div className="space-y-4">
                   {inventoryItems
-                    .filter((item) => item.status === "critical")
+                    .filter((item) => item && item.status === "out") // Changed "critical" to "out"
                     .map((item) => (
                       <div
                         key={item.id}
@@ -573,7 +531,7 @@ const Inventory = () => {
                                 {item.name}
                               </span>
                               <Badge className="ml-2 bg-red-100 text-red-800">
-                                Critical
+                                Out of Stock
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600 mt-1">
@@ -595,7 +553,7 @@ const Inventory = () => {
                     ))}
 
                   {inventoryItems
-                    .filter((item) => item.status === "low")
+                    .filter((item) => item && item.status === "low")
                     .map((item) => (
                       <div
                         key={item.id}
@@ -630,7 +588,7 @@ const Inventory = () => {
                       </div>
                     ))}
 
-                  {inventoryItems.filter((item) => item.status !== "ok")
+                  {inventoryItems.filter((item) => item && item.status !== "ok")
                     .length === 0 && (
                     <div className="text-center py-8">
                       <div className="bg-green-100 text-green-800 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
@@ -768,13 +726,13 @@ const Inventory = () => {
                       <div className="p-4">
                         <h4 className="text-sm font-medium mb-2">Items:</h4>
                         <ul className="space-y-1">
-                          {delivery.items.map((item, index) => (
+                          {delivery.items && delivery.items.map((item, index) => (
                             <li
                               key={index}
                               className="text-sm flex items-center"
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-gray-400 mr-2"></span>
-                              {item}
+                              {`${item.quantity} ${item.unit} (${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.totalCost)})`}
                             </li>
                           ))}
                         </ul>
