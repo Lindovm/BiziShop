@@ -79,6 +79,10 @@ function AppContent() {
           />
           <Route
             path="/dashboard"
+            element={<Dashboard />}
+          />
+          <Route
+            path="/protected-dashboard"
             element={
               <ProtectedRoute element={<Dashboard />} path="/dashboard" />
             }

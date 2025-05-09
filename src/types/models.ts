@@ -60,6 +60,7 @@ export interface InventoryItem {
   status: 'ok' | 'low' | 'out';
   location?: string;
   expiryDate?: string;
+  updatedAt?: string; // Added updatedAt
 }
 
 export interface StockMovement {
@@ -192,13 +193,15 @@ export interface Notification {
 export interface Restaurant {
   id: string;
   name: string;
-  address?: string;
+  address?: string | { street?: string; city?: string; [key: string]: any };
   phone?: string;
   email?: string;
   logo_url?: string;
   ownerId?: string;
   createdAt: string;
   updatedAt?: string;
+  is_open?: boolean;
+  operating_hours?: string;
 }
 
 // Settings-related types
@@ -219,4 +222,17 @@ export interface ShopSettings {
   }[];
   receiptFooter?: string;
   receiptHeader?: string;
+}
+
+// Review-related types
+export interface Review {
+  id: string;
+  restaurantId: string; // or shopId, depending on your main identifier
+  userId?: string; // Optional: if reviews are linked to users
+  orderId?: string; // Optional: if reviews are linked to specific orders
+  rating: number; // e.g., 1-5
+  comment?: string;
+  createdAt: string;
+  updatedAt?: string;
+  reviewerName?: string; // If not linked to a user, or for display
 }
