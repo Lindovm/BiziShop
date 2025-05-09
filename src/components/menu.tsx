@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -12,13 +12,36 @@ const Menu = () => {
   const { products, categories, loadingProducts, loadingCategories } = useShop();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Group products by category
-  const productsByCategory = products.reduce((acc, product) => {
-    const category = product.category || 'uncategorized';
-    if (!acc[category]) {
-      acc[category] = [];
+  // Memoized list of categories for display, including a synthetic "Uncategorized" tab if needed.
+  const displayCategories = useMemo(() => {
+    const originalCategories = categories || [];
+    const hasUncategorizedProducts = products.some(
+      (p) => !p.category || p.category === "uncategorized",
+    );
+
+    if (hasUncategorizedProducts) {
+      const uncatCategoryExists = originalCategories.some(
+        (c) => c.id === "uncategorized",
+      );
+      if (!uncatCategoryExists) {
+        // Define a default order for categories if not present, and place "Uncategorized" last.
+        const maxOrder = originalCategories.reduce((max, cat) => Math.max(max, cat.order || 0), 0);
+        return [
+          ...originalCategories,
+          { id: "uncategorized", name: "Uncategorized", order: maxOrder + 1 },
+        ];
+      }
     }
-    acc[category].push(product);
+    return originalCategories;
+  }, [products, categories]);
+
+  // Group products by category (can be kept if used elsewhere or for debugging)
+  const productsByCategory = products.reduce((acc, product) => {
+    const categoryKey = product.category || 'uncategorized';
+    if (!acc[categoryKey]) {
+      acc[categoryKey] = [];
+    }
+    acc[categoryKey].push(product);
     return acc;
   }, {} as Record<string, typeof products>);
 
@@ -53,22 +76,27 @@ const Menu = () => {
         </div>
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="w-full bg-white mb-4 p-1 rounded-lg">
-            <TabsTrigger value="all" className="flex-1">
-              All Items
-            </TabsTrigger>
-            {loadingCategories ? (
-              <TabsTrigger value="loading" className="flex-1" disabled>
-                Loading...
+          {/* Increased height of the TabsList container slightly */}
+          <div className="w-full overflow-hidden h-14 flex items-center"> 
+            <TabsList className="flex bg-white mb-4 p-1 rounded-lg overflow-x-auto whitespace-nowrap">
+              <TabsTrigger value="all" className="px-4 py-2 text-sm font-medium">
+                All Items
               </TabsTrigger>
-            ) : (
-              categories.map(category => (
-                <TabsTrigger key={category.id} value={category.id} className="flex-1">
-                  {category.name}
+              {loadingCategories && displayCategories.length === 0 ? (
+                <TabsTrigger value="loading" className="px-4 py-2 text-sm font-medium" disabled>
+                  Loading Categories...
                 </TabsTrigger>
-              ))
-            )}
-          </TabsList>
+              ) : (
+                displayCategories
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map(category => (
+                    <TabsTrigger key={category.id} value={category.id} className="px-4 py-2 text-sm font-medium">
+                      {category.name}
+                    </TabsTrigger>
+                  ))
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="all" className="space-y-4">
             {loadingProducts ? (
@@ -97,11 +125,16 @@ const Menu = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredProducts.map(product => {
-                  const category = categories.find(c => c.id === product.category);
+                  const productCategoryObj = categories.find(c => c.id === product.category);
+                  if (product.name === "Burger") { // Debug log for Burger
+                    console.log("Burger Debug: product.category =", product.category);
+                    console.log("Burger Debug: categories array =", JSON.stringify(categories));
+                    console.log("Burger Debug: productCategoryObj found =", productCategoryObj);
+                  }
                   return (
-                    <Card key={product.id} className="overflow-hidden">
+                    <Card key={product.id} className="overflow-hidden flex flex-col">
                       {product.imageUrl && (
-                        <div className="h-40 w-full overflow-hidden">
+                        <div className="h-36 w-full overflow-hidden"> {/* Adjusted height */}
                           <img
                             src={product.imageUrl}
                             alt={product.name}
@@ -109,26 +142,24 @@ const Menu = () => {
                           />
                         </div>
                       )}
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-bold text-lg">{product.name}</h3>
-                            {category && (
-                              <Badge className="bg-orange-100 text-orange-800 mt-1">
-                                {category.name}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-lg font-bold">{formatCurrency(product.price)}</div>
+                      <CardContent className="p-4 flex flex-col flex-grow">
+                        <div className="flex justify-between items-center mb-1"> {/* Title and Price */}
+                          <h3 className="font-bold text-lg truncate">{product.name}</h3>
+                          <div className="text-lg font-bold whitespace-nowrap">{formatCurrency(product.price)}</div>
                         </div>
-                        <p className="text-sm text-gray-500 mb-4">
+                        {product["Side or Main"] && ( /* Display "Side or Main" field value */
+                          <Badge className="bg-amber-100 text-amber-800 self-start mb-2 px-2 py-0.5 text-xs">
+                            {product["Side or Main"]}
+                          </Badge>
+                        )}
+                        <p className="text-sm text-gray-500 mb-3 flex-grow"> {/* Description */}
                           {product.description}
                         </p>
-                        <div className="flex justify-between">
-                          {product.popular && (
+                        <div className="flex justify-between items-center mt-auto"> {/* Popular Badge and Actions */}
+                          {product["Main Category"] === "Popular" && (
                             <Badge
                               variant="outline"
-                              className="text-green-600 border-green-600"
+                              className="bg-white text-green-600 border-green-600 px-2 py-0.5 text-xs"
                             >
                               Popular
                             </Badge>
@@ -155,91 +186,106 @@ const Menu = () => {
           </TabsContent>
 
           {/* Category-specific tabs */}
-          {categories.map(category => (
-            <TabsContent key={category.id} value={category.id} className="space-y-4">
-              {loadingProducts ? (
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-                    </div>
-                    <p className="text-center mt-4 text-gray-500">Loading menu items...</p>
-                  </CardContent>
-                </Card>
-              ) : products.filter(p => p.category === category.id).length === 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>No {category.name} Items</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-500">No items in this category yet.</p>
-                    <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
-                      <Plus className="h-4 w-4 mr-2" /> Add {category.name} Item
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products
-                    .filter(p => p.category === category.id)
-                    .filter(p =>
-                      searchTerm === '' ||
-                      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      p.description.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map(product => (
-                      <Card key={product.id} className="overflow-hidden">
-                        {product.imageUrl && (
-                          <div className="h-40 w-full overflow-hidden">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-bold text-lg">{product.name}</h3>
-                              <Badge className="bg-orange-100 text-orange-800 mt-1">
-                                {category.name}
-                              </Badge>
+          {displayCategories
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map(category => {
+              const categoryProducts = products.filter(p => {
+                if (category.id === "uncategorized") {
+                  return !p.category || p.category === "uncategorized";
+                }
+                return p.category === category.id;
+              });
+
+              const filteredCategoryProducts = categoryProducts.filter(
+                p =>
+                  searchTerm === "" ||
+                  p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  p.description.toLowerCase().includes(searchTerm.toLowerCase()),
+              );
+
+              return (
+                <TabsContent key={category.id} value={category.id} className="space-y-4">
+                  {loadingProducts ? (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                        </div>
+                        <p className="text-center mt-4 text-gray-500">Loading menu items...</p>
+                      </CardContent>
+                    </Card>
+                  ) : filteredCategoryProducts.length === 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>No {category.name} Items</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-500">
+                          {searchTerm ? 'No items match your search in this category.' : `No items in ${category.name} yet.`}
+                        </p>
+                        <Button className="mt-4 bg-orange-500 hover:bg-orange-600">
+                          <Plus className="h-4 w-4 mr-2" /> Add {category.name} Item
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredCategoryProducts.map(product => (
+                        // The 'category' variable here is from the .map(category => ...) loop
+                        <Card key={product.id} className="overflow-hidden flex flex-col">
+                          {product.imageUrl && (
+                            <div className="h-36 w-full overflow-hidden"> {/* Adjusted height */}
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                            <div className="text-lg font-bold">{formatCurrency(product.price)}</div>
-                          </div>
-                          <p className="text-sm text-gray-500 mb-4">
-                            {product.description}
-                          </p>
-                          <div className="flex justify-between">
-                            {product.popular && (
-                              <Badge
-                                variant="outline"
-                                className="text-green-600 border-green-600"
-                              >
-                                Popular
-                              </Badge>
+                          )}
+                          <CardContent className="p-4 flex flex-col flex-grow">
+                            <div className="flex justify-between items-center mb-1"> {/* Title and Price */}
+                              <h3 className="font-bold text-lg truncate">{product.name}</h3>
+                              <div className="text-lg font-bold whitespace-nowrap">{formatCurrency(product.price)}</div>
+                            </div>
+                            {/* Display "Side or Main" field value */}
+                            {product["Side or Main"] && (
+                            <Badge className="bg-amber-100 text-amber-800 self-start mb-2 px-2 py-0.5 text-xs">
+                              {product["Side or Main"]}
+                            </Badge>
                             )}
-                            <div className="space-x-2">
-                              <Button variant="outline" size="icon">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="text-red-500 border-red-200 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <p className="text-sm text-gray-500 mb-3 flex-grow"> {/* Description */}
+                              {product.description}
+                            </p>
+                            <div className="flex justify-between items-center mt-auto"> {/* Popular Badge and Actions */}
+                              {product["Main Category"] === "Popular" && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-white text-green-600 border-green-600 px-2 py-0.5 text-xs"
+                                >
+                                  Popular
+                                </Badge>
+                              )}
+                              <div className="space-x-2">
+                                <Button variant="outline" size="icon">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="text-red-500 border-red-200 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </TabsContent>
-          ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              );
+            })}
         </Tabs>
       </div>
     </Layout>

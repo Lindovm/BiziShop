@@ -22,6 +22,7 @@ import {
   where,
   orderBy,
   limit,
+  getDocs,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
@@ -74,7 +75,7 @@ interface ShopProviderProps {
 }
 
 export const ShopProvider = ({ children }: ShopProviderProps) => {
-  const { currentUser, userRole } = useAuth();
+  const { currentUser, userRole, userRestaurant } = useAuth(); // Added userRestaurant
 
   // State for products and categories
   const [products, setProducts] = useState<Product[]>([]);
@@ -117,19 +118,42 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
         setLoadingCategories(true);
 
         // Set up real-time listener for products
-        const productsQuery = query(
-          collection(firestore, "products"),
-          where("isAvailable", "==", true),
-          orderBy("name"),
-        );
+        let productsQuery;
+        if (userRestaurant && userRestaurant.id) {
+          console.log(`ShopContext: Fetching products for restaurant ID: ${userRestaurant.id}`);
+          productsQuery = query(
+            collection(firestore, "products"),
+            where("restaurant_id", "==", userRestaurant.id),
+            where("isAvailable", "==", true),
+            orderBy("name"),
+          );
+        } else {
+          console.log("ShopContext: userRestaurant or userRestaurant.id is not available. Fetching all available products.");
+          // Fallback or behavior if no specific restaurant context (might need adjustment based on app logic)
+          // For now, this will fetch all products if no restaurant is set, which might be too broad.
+          // Consider if this fallback is appropriate or if it should prevent loading products.
+          productsQuery = query(
+            collection(firestore, "products"),
+            where("isAvailable", "==", true),
+            orderBy("name"),
+          );
+        }
 
         unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
           const productsData = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as Product[];
-
+          
+          console.log(`ShopContext: Fetched ${productsData.length} products. First product (if any):`, productsData[0]);
+          if (productsData.length > 0) {
+            console.log(`ShopContext: Details of first product: ID=${productsData[0].id}, Name=${productsData[0].name}, Category=${productsData[0].category}, RestaurantID=${(productsData[0] as any).restaurant_id}`);
+          }
+          
           setProducts(productsData);
+          setLoadingProducts(false);
+        }, (error) => {
+          console.error("Error in products snapshot listener:", error);
           setLoadingProducts(false);
         });
 
@@ -147,6 +171,9 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
 
           setCategories(categoriesData);
           setLoadingCategories(false);
+        }, (error) => {
+          console.error("Error in categories snapshot listener:", error);
+          setLoadingCategories(false);
         });
       } catch (error) {
         console.error("Error loading products and categories:", error);
@@ -161,7 +188,7 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
       if (unsubscribeProducts) unsubscribeProducts();
       if (unsubscribeCategories) unsubscribeCategories();
     };
-  }, [currentUser]);
+  }, [currentUser, userRestaurant]); // Added userRestaurant to dependency array
 
   // Load inventory items
   useEffect(() => {
@@ -429,8 +456,28 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
   const refreshProducts = async () => {
     try {
       setLoadingProducts(true);
-      const productsData = await menuDB.getAllMenuItems();
-      setProducts(productsData as Product[]);
+      let productsQuery;
+      if (userRestaurant && userRestaurant.id) {
+        productsQuery = query(
+          collection(firestore, "products"),
+          where("restaurant_id", "==", userRestaurant.id),
+          where("isAvailable", "==", true),
+          orderBy("name"),
+        );
+      } else {
+        // Fallback if no restaurant context, adjust as needed
+        productsQuery = query(
+          collection(firestore, "products"),
+          where("isAvailable", "==", true),
+          orderBy("name"),
+        );
+      }
+      const snapshot = await getDocs(productsQuery);
+      const productsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Product[];
+      setProducts(productsData);
     } catch (error) {
       console.error("Error refreshing products:", error);
     } finally {
@@ -563,19 +610,27 @@ export const ShopProvider = ({ children }: ShopProviderProps) => {
 
   // Function to update shop settings
   const updateShopSettings = async (settings: Partial<ShopSettings>) => {
-    if (!shopSettings) return;
+    // Ensure shopSettings and its id are available
+    if (!shopSettings || !shopSettings.id) {
+      console.error("Attempted to update shop settings when shopSettings is null or has no ID.");
+      return;
+    }
+
+    // shopSettings is guaranteed non-null and has an id here.
+    const currentShopSettings = shopSettings as ShopSettings; // Assert type after guard
 
     try {
       setLoadingSettings(true);
-      const updatedSettings = {
-        ...shopSettings,
-        ...settings,
-        updatedAt: new Date().toISOString(),
+      const updatedSettings: ShopSettings = {
+        ...currentShopSettings, // Spread existing non-null settings
+        ...settings,             // Spread partial updates
+        id: currentShopSettings.id, // Ensure id is preserved from original
+        updatedAt: new Date().toISOString(), // Set new updatedAt
       };
 
       await firestoreDB.setDocument(
         "settings",
-        shopSettings.id,
+        currentShopSettings.id,
         updatedSettings,
       );
       setShopSettings(updatedSettings);

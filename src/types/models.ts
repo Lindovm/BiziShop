@@ -19,9 +19,12 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category: string; // This links to the categories collection (e.g., for "Main Dishes", "Sides")
   imageUrl?: string;
   isAvailable: boolean;
+  // popular?: boolean; // Removing this as per new understanding
+  "Main Category"?: string; // e.g., "Popular", "New", "Special" - to be displayed as a badge
+  "Side or Main"?: string;  // e.g., "Main", "Side" - for additional classification
   createdAt: string;
   updatedAt?: string;
   cost?: number;
@@ -222,6 +225,7 @@ export interface ShopSettings {
   }[];
   receiptFooter?: string;
   receiptHeader?: string;
+  updatedAt?: string; // Added updatedAt for ShopSettings
 }
 
 // Review-related types
