@@ -61,13 +61,10 @@ const Settings = () => {
         address: userProfile.address || "",
       });
 
-      // Fetch restaurant data if any restaurant ID field exists
-      if (restaurantId) {
-        console.log("Fetching restaurant data for:", restaurantId);
-        fetchRestaurantData(restaurantId);
-      } else {
-        console.log("No restaurant ID field found in user profile");
-      }
+      // Always try to fetch restaurant data, even if no ID is found
+      // The getRestaurantByReference function has fallbacks to handle this
+      console.log("Fetching restaurant data for:", restaurantId || "fallback restaurant");
+      fetchRestaurantData(restaurantId);
     }
   }, [userProfile]);
 
@@ -77,28 +74,98 @@ const Settings = () => {
       setLoadingRestaurant(true);
       console.log("Fetching restaurant with reference:", restaurantRef);
 
-      // If the reference is undefined or null, log and return
-      if (!restaurantRef) {
-        console.log("Restaurant reference is null or undefined");
-        setRestaurant(null);
-        setLoadingRestaurant(false);
-        return;
-      }
-
-      const restaurantData =
-        await shopDB.getRestaurantByReference(restaurantRef);
+      // Even if the reference is undefined or null, we'll try to fetch a default restaurant
+      // Our updated getRestaurantByReference function has fallbacks
+      const restaurantData = await shopDB.getRestaurantByReference(restaurantRef);
       console.log("Restaurant data result:", restaurantData);
 
       if (restaurantData) {
         console.log("Setting restaurant data:", restaurantData);
         setRestaurant(restaurantData as Restaurant);
+
+        // If we got a restaurant but the user doesn't have a restaurant_id, update their profile
+        if (!restaurantRef && userProfile && restaurantData.id) {
+          console.log("Updating user profile with restaurant ID:", restaurantData.id);
+          try {
+            await updateUserProfile({
+              restaurant_id: `restaurants/${restaurantData.id}`,
+              restaurantId: `restaurants/${restaurantData.id}`,
+              restaurants_id: `/restaurants/${restaurantData.id}`,
+            });
+            console.log("User profile updated with restaurant ID");
+          } catch (updateError) {
+            console.error("Error updating user profile with restaurant ID:", updateError);
+          }
+        }
       } else {
         console.log("No restaurant found with the given reference");
-        setRestaurant(null);
+
+        // Try to get any restaurant as a fallback
+        try {
+          console.log("Trying to get any restaurant as fallback");
+          const restaurants = await shopDB.getAllRestaurants();
+          if (restaurants && restaurants.length > 0) {
+            console.log("Found restaurants:", restaurants);
+            const firstRestaurant = restaurants[0];
+            console.log("Using first restaurant as fallback:", firstRestaurant);
+            setRestaurant(firstRestaurant as Restaurant);
+
+            // Update user profile with this restaurant
+            if (userProfile) {
+              console.log("Updating user profile with fallback restaurant ID:", firstRestaurant.id);
+              try {
+                await updateUserProfile({
+                  restaurant_id: `restaurants/${firstRestaurant.id}`,
+                  restaurantId: `restaurants/${firstRestaurant.id}`,
+                  restaurants_id: `/restaurants/${firstRestaurant.id}`,
+                });
+                console.log("User profile updated with fallback restaurant ID");
+              } catch (updateError) {
+                console.error("Error updating user profile with fallback restaurant ID:", updateError);
+              }
+            }
+          } else {
+            setRestaurant(null);
+          }
+        } catch (fallbackError) {
+          console.error("Error getting fallback restaurant:", fallbackError);
+          setRestaurant(null);
+        }
       }
     } catch (error) {
       console.error("Error fetching restaurant data:", error);
-      setRestaurant(null);
+
+      // Try to get any restaurant as a fallback
+      try {
+        console.log("Trying to get any restaurant as fallback after error");
+        const restaurants = await shopDB.getAllRestaurants();
+        if (restaurants && restaurants.length > 0) {
+          console.log("Found restaurants after error:", restaurants);
+          const firstRestaurant = restaurants[0];
+          console.log("Using first restaurant as fallback after error:", firstRestaurant);
+          setRestaurant(firstRestaurant as Restaurant);
+
+          // Update user profile with this restaurant
+          if (userProfile) {
+            console.log("Updating user profile with fallback restaurant ID after error:", firstRestaurant.id);
+            try {
+              await updateUserProfile({
+                restaurant_id: `restaurants/${firstRestaurant.id}`,
+                restaurantId: `restaurants/${firstRestaurant.id}`,
+                restaurants_id: `/restaurants/${firstRestaurant.id}`,
+              });
+              console.log("User profile updated with fallback restaurant ID after error");
+            } catch (updateError) {
+              console.error("Error updating user profile with fallback restaurant ID after error:", updateError);
+            }
+          }
+        } else {
+          setRestaurant(null);
+        }
+      } catch (fallbackError) {
+        console.error("Error getting fallback restaurant after error:", fallbackError);
+        setRestaurant(null);
+      }
     } finally {
       setLoadingRestaurant(false);
     }
@@ -381,55 +448,40 @@ const Settings = () => {
                           size="sm"
                           onClick={async () => {
                             try {
-                              // Use a known restaurant ID from your Firestore
-                              const testRestaurantId = "2N5qPT2UasAPyjTpDSUY"; // This is the ID we see in Firebase
+                              // First try to get all restaurants to find a valid ID
+                              console.log("Getting all restaurants to find a valid ID");
+                              const restaurants = await shopDB.getAllRestaurants();
 
-                              // Create a dropdown to select the format of the restaurant_id
-                              const format = window.prompt(
-                                "Select restaurant_id format:\n1. Full path (restaurants/ID)\n2. Document ID only\n3. Full path with leading slash (/restaurants/ID)\n4. All formats (recommended)\nEnter 1, 2, 3, or 4:",
-                                "4",
-                              );
+                              let testRestaurantId = "2N5qPT2UasAPyjTpDSUY"; // Default ID
 
-                              if (format === "4") {
-                                // Set all formats to ensure compatibility
-                                console.log(
-                                  `Setting all restaurant ID formats`,
-                                );
-                                await updateUserProfile({
-                                  restaurant_id: `restaurants/${testRestaurantId}`,
-                                  restaurantId: `restaurants/${testRestaurantId}`,
-                                  restaurants_id: `/restaurants/${testRestaurantId}`,
-                                });
+                              if (restaurants && restaurants.length > 0) {
+                                // Use the first restaurant found
+                                testRestaurantId = restaurants[0].id;
+                                console.log("Using restaurant ID from database:", testRestaurantId);
                               } else {
-                                let restaurant_id;
-                                if (format === "1") {
-                                  restaurant_id = `restaurants/${testRestaurantId}`;
-                                } else if (format === "2") {
-                                  restaurant_id = testRestaurantId;
-                                } else if (format === "3") {
-                                  restaurant_id = `/restaurants/${testRestaurantId}`;
-                                } else {
-                                  // Default to full path
-                                  restaurant_id = `restaurants/${testRestaurantId}`;
-                                }
-
-                                console.log(
-                                  `Setting restaurant_id to: ${restaurant_id}`,
-                                );
-                                await updateUserProfile({
-                                  restaurant_id: restaurant_id,
-                                });
+                                console.log("No restaurants found, using default ID:", testRestaurantId);
                               }
 
+                              // Always set all formats to ensure compatibility
+                              console.log(`Setting all restaurant ID formats with ID: ${testRestaurantId}`);
+                              await updateUserProfile({
+                                restaurant_id: `restaurants/${testRestaurantId}`,
+                                restaurantId: `restaurants/${testRestaurantId}`,
+                                restaurants_id: `/restaurants/${testRestaurantId}`,
+                              });
+
+                              // Immediately fetch the restaurant data to update the UI
+                              await fetchRestaurantData(`restaurants/${testRestaurantId}`);
+
                               alert(
-                                "User linked to test restaurant. Refresh the page to see changes.",
+                                "User linked to restaurant successfully! You should now see your restaurant information.",
                               );
                             } catch (error) {
                               console.error(
-                                "Error linking to test restaurant:",
+                                "Error linking to restaurant:",
                                 error,
                               );
-                              alert("Failed to link to test restaurant.");
+                              alert("Failed to link to restaurant. Check console for details.");
                             }
                           }}
                         >

@@ -19,6 +19,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
+import { getStorage } from "firebase/storage";
 
 // User roles
 export type UserRole = "cashier" | "manager" | "owner";
@@ -90,9 +91,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 const database = getDatabase(app);
+const storage = getStorage(app);
 
 // Export Firebase services
-export { firestore, database };
+export { firestore, database, storage };
 
 // Firebase authentication wrapper
 export const firebaseAuth = {

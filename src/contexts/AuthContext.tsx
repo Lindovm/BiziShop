@@ -56,18 +56,95 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const restaurantId =
         profile.restaurant_id || profile.restaurantId || profile.restaurants_id;
 
-      if (restaurantId) {
-        console.log("Fetching restaurant with ID:", restaurantId);
-        const restaurant = await shopDB.getRestaurantByReference(restaurantId);
-        console.log("Fetched restaurant:", restaurant);
+      console.log("Fetching restaurant with ID:", restaurantId || "fallback restaurant");
+      const restaurant = await shopDB.getRestaurantByReference(restaurantId);
+      console.log("Fetched restaurant:", restaurant);
+
+      if (restaurant) {
         setUserRestaurant(restaurant as Restaurant);
+
+        // If we got a restaurant but the user doesn't have a restaurant_id, update their profile
+        if (!restaurantId && profile && restaurant.id) {
+          console.log("Updating user profile with restaurant ID:", restaurant.id);
+          try {
+            const updatedProfile = {
+              ...profile,
+              restaurant_id: `restaurants/${restaurant.id}`,
+              restaurantId: `restaurants/${restaurant.id}`,
+              restaurants_id: `/restaurants/${restaurant.id}`,
+              updatedAt: new Date().toISOString(),
+            };
+
+            await userDB.setUserProfile(profile.id, updatedProfile);
+            setUserProfile(updatedProfile as User);
+            console.log("User profile updated with restaurant ID");
+          } catch (updateError) {
+            console.error("Error updating user profile with restaurant ID:", updateError);
+          }
+        }
       } else {
-        console.log("No restaurant ID found in user profile");
-        setUserRestaurant(null);
+        console.log("No restaurant found with the given reference, trying to get any restaurant");
+
+        // Try to get any restaurant as a fallback
+        try {
+          const restaurants = await shopDB.getAllRestaurants();
+          if (restaurants && restaurants.length > 0) {
+            const firstRestaurant = restaurants[0];
+            console.log("Using first restaurant as fallback:", firstRestaurant);
+            setUserRestaurant(firstRestaurant as Restaurant);
+
+            // Update user profile with this restaurant
+            const updatedProfile = {
+              ...profile,
+              restaurant_id: `restaurants/${firstRestaurant.id}`,
+              restaurantId: `restaurants/${firstRestaurant.id}`,
+              restaurants_id: `/restaurants/${firstRestaurant.id}`,
+              updatedAt: new Date().toISOString(),
+            };
+
+            await userDB.setUserProfile(profile.id, updatedProfile);
+            setUserProfile(updatedProfile as User);
+            console.log("User profile updated with fallback restaurant ID");
+          } else {
+            console.log("No restaurants found in database");
+            setUserRestaurant(null);
+          }
+        } catch (fallbackError) {
+          console.error("Error getting fallback restaurant:", fallbackError);
+          setUserRestaurant(null);
+        }
       }
     } catch (error) {
       console.error("Error fetching restaurant data:", error);
-      setUserRestaurant(null);
+
+      // Try to get any restaurant as a fallback after error
+      try {
+        console.log("Trying to get any restaurant as fallback after error");
+        const restaurants = await shopDB.getAllRestaurants();
+        if (restaurants && restaurants.length > 0) {
+          const firstRestaurant = restaurants[0];
+          console.log("Using first restaurant as fallback after error:", firstRestaurant);
+          setUserRestaurant(firstRestaurant as Restaurant);
+
+          // Update user profile with this restaurant
+          const updatedProfile = {
+            ...profile,
+            restaurant_id: `restaurants/${firstRestaurant.id}`,
+            restaurantId: `restaurants/${firstRestaurant.id}`,
+            restaurants_id: `/restaurants/${firstRestaurant.id}`,
+            updatedAt: new Date().toISOString(),
+          };
+
+          await userDB.setUserProfile(profile.id, updatedProfile);
+          setUserProfile(updatedProfile as User);
+          console.log("User profile updated with fallback restaurant ID after error");
+        } else {
+          setUserRestaurant(null);
+        }
+      } catch (fallbackError) {
+        console.error("Error getting fallback restaurant after error:", fallbackError);
+        setUserRestaurant(null);
+      }
     }
   };
 

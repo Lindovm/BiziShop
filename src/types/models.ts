@@ -29,6 +29,7 @@ export interface Product {
   sku?: string;
   tags?: string[];
   variants?: ProductVariant[];
+  restaurant_id: string; // Reference to the restaurant this product belongs to
 }
 
 export interface ProductVariant {
