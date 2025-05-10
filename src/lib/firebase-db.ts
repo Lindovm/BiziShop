@@ -493,22 +493,22 @@ export const menuDB = {
     // If 'id' field is part of Product model and should store the itemId:
     // dataToSet.id = itemId;
 
-    return firestoreDB.setDocument('menu', itemId, dataToSet as Product);
+    return firestoreDB.setDocument('products', itemId, dataToSet as Product); // Changed 'menu' to 'products'
   },
 
   // Get all menu items
   getAllMenuItems: async (): Promise<DocumentData[]> => {
-    return firestoreDB.getCollection('menu');
+    return firestoreDB.getCollection('products'); // Changed 'menu' to 'products'
   },
 
   // Get menu items by category
   getMenuItemsByCategory: async (category: string): Promise<DocumentData[]> => {
-    return firestoreDB.queryCollection('menu', 'category', '==', category);
+    return firestoreDB.queryCollection('products', 'category', '==', category); // Changed 'menu' to 'products'
   },
 
   // Delete menu item
   deleteMenuItem: async (itemId: string): Promise<void> => {
-    return firestoreDB.deleteDocument('menu', itemId);
+    return firestoreDB.deleteDocument('products', itemId); // Changed 'menu' to 'products'
   }
 };
 
