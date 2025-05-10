@@ -181,15 +181,29 @@ export interface InventoryAlert {
 }
 
 // Notification-related types
+export type SpecificNotificationType =
+  | 'ORDER_RECEIVED'
+  | 'LOW_STOCK_ALERT'
+  | 'NEW_MESSAGE'
+  | 'DELIVERY_CONFIRMED'
+  | 'ORDER_COMPLETED'
+  | 'PAYMENT_SUCCESSFUL'
+  | 'APPOINTMENT_REMINDER'
+  | 'GENERAL_ANNOUNCEMENT'
+  | 'SYSTEM_ALERT';
+
 export interface Notification {
   id: string;
-  userId: string;
+  userId: string; // To whom the notification belongs
   title: string;
-  message: string;
-  type: 'info' | 'warning' | 'error' | 'success';
+  message: string; // Detailed message
+  type: 'info' | 'warning' | 'error' | 'success'; // General category for styling (e.g., color)
+  specificType: SpecificNotificationType; // For specific icon and handling logic
   isRead: boolean;
-  createdAt: string;
-  link?: string;
+  createdAt: any; // Firestore Timestamp or ISO string. Prefer Timestamp for new data.
+  link?: string; // Optional link to navigate on click
+  relatedEntityId?: string; // e.g., orderId, productId, messageId for deep linking or context
+  icon?: string; // Optional: if we want to store a specific icon name directly
 }
 
 // Restaurant-related types
