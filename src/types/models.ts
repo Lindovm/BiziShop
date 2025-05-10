@@ -240,3 +240,31 @@ export interface Review {
   updatedAt?: string;
   reviewerName?: string; // If not linked to a user, or for display
 }
+
+// Message and Chat types
+export interface Message {
+  id: string;
+  sender: 'customer' | 'vendor' | 'support' | string; // string for flexibility
+  text: string;
+  time?: string; // Display time, can be derived from timestamp
+  timestamp: any; // Firestore Timestamp or ServerTimestamp
+  userId?: string; // ID of the user who sent the message
+  orderId?: string; // Optional: if message is related to a specific order
+  read?: boolean; // To track if the message has been read by the recipient
+}
+
+export interface Chat {
+  id: string;
+  name: string; // Customer name or a group chat name
+  lastMessageText?: string; // Text of the last message
+  lastMessageTimestamp?: any; // Firestore Timestamp of the last message for ordering
+  unreadCount?: number; // Number of unread messages for the current user
+  participants: string[]; // Array of user IDs (e.g., [customerId, vendorId])
+  participantNames?: { [userId: string]: string }; // Map userId to name for display
+  participantAvatars?: { [userId: string]: string }; // Map userId to avatar/initials
+  orderId?: string; // Optional: if chat is related to a specific order
+  createdAt?: any; // Firestore Timestamp when chat was created
+  updatedAt?: any; // Firestore Timestamp when chat was last updated (e.g. new message)
+  // Additional fields like customerId, vendorId could be useful for querying
+  // For simplicity, messages will be a subcollection within each chat document in Firestore
+}
