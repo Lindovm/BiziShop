@@ -1,22 +1,8 @@
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
-const serviceAccount = {
-  "type": "service_account",
-  "project_id": "bizibase",
-  "private_key_id": "3625b3bf493f264f309b8882aea92b986686b83c",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCrl8mQZzmsZpM1\namgznSNVJM8I7/b9ytwEilI1A+ZODdgqXUjlbDC/W2A+b62eav/AUBjurfqgZ9eq\n0xZL0L1NfgCOQIanLkcJsTBUfGu5RhifrEWB3H0UBn+ic2ANMKkoiERw38KAGARD\nMbuTayYhGJ3ihisep9CAWa5zFY5uQ34MH4LyL92g/uVoT87LnaFVpic2n90u2xv8\nBGdycHzTYU+wZltFNCmGvt2tNPPjTUu9UEiPuBsFnCXBLJ9u3JlTLZKX5tUEuhRv\n/1sWUt0Zb1rY+CgSunsPuDD+TLlYadWZeRObaVaBsGyDhW3oJjg5a1i9vLaRZ9ve\nSCLbcRcxAgMBAAECggEALl+RnkB/ciuwigWNTrGffGG7wBcWAaXCy0lUiTZaFesg\n6eYXDsWr8PMxcf49hiw1nRQogMytCI+31ddBVdD+cARnAwrGOUVE9oYX4SVU+ZfL\njM+CY2Oiu/g7ozwaD8aAWM9m67hVOMgE0uIMZv1UqyobdT48RgclTqKuBjUjroGG\nkcin82TLzFV7I79EyoyVigV5HINZqR5H7oPn6AT9c29JVBwKB1GFP7FaH+S9DDm5\nVYY9tRcs0DTZQuawOjC6CkUKHxWKhKzszmWZ6HVuCfz2Z68yOkMwCBmREKsP/Iuu\nf3wFPnv0oEmHCHY9EmESBHDe1bNIvzbxhtqF4LoQhwKBgQDcGPCFdS8ivL5raGdr\nt451syMmEjN5KpcILVd7lxmtJbiZuIppv+Cr06XcamD1puqfMZ3kklYiBQVTtVnO\nJabR6W/MLnI/ou3oYFXINjeCl644Ga62+L7MJpwGpyHoUxdxtDapX0yJp+XWg0aZ\nrzKWV0oVsY1AKJoM4Mvln1epWwKBgQDHlVh9usv/3vNSdS5BrZVAKj99CotVfa/H\nn7PjpA3zGx1oXeX1Pqc0+qDlUXFlkw+8m4tgTnTM3KH8kN9L7c/Eb4O1SERVwL0c\nhpyrUsO/oniFXSwlIemNxzMlCi1Bx/3XcdokLxni2nCGwJRQ5mVxmZZmQZkXoMf1\nXkDb+mobYwKBgEWedeYhDQnV3f2nhp8h7qP4R/Pw6es3t5JUlUl4oByOw/eL0exl\nTzHKvrobxBOv+qLkVOdKCoi0Qd0ajg+RBVV8m2pgfq72YH6Sik/MJn7eb7M7HHKv\n99onlE7eavFL5yyGLowgotsgCqlx2NEgA8ZeUgbOpLlYnnHYYWZ+ooHlAoGBAJRC\nkRX1KY3N5RsgCVioxfKAb+FHb/H2CBpWvJ8iQ2qQfewFtMnV3QgyFkvDkGVQNaR6\nN7M3FPUKARtJ01boNitKW6DTKlA5eUIzjTaHqPo2iykm6aA77O9xRsEBKlVvZ1Yg\nMVgn1Sb79hNkA8mFHV6iJWOY30z6FxBjD/NZtnDZAoGAIlIWP5mmdghmE/drTgpQ\nLZTogpnu5SOr+ofyTohVywni4jgtJMbX5CN/iLkm+8arLAJqrtwMglV3VSzRo0fp\n8WPxF01v2kIx4iF8E0AzzaPY2PwmN5IVFPwyFd51oTKXV8TiT0SseuvyeM7PiMsj\nSFlk87W091qMJMpnG/+vNps=\n-----END PRIVATE KEY-----\n",
-  "client_email": "firebase-adminsdk-fbsvc@bizibase.iam.gserviceaccount.com",
-  "client_id": "108234230243857405202",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40bizibase.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
-};
-
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.applicationDefault()
 });
 
 const db = admin.firestore();
